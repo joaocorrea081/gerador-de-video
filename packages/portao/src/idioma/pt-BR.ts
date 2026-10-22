@@ -605,6 +605,7 @@ export const PT_BR: Record<string, string> = {
   "refazer.sugestoes": "Variações sugeridas",
   "js.erro.chave_ausente": "Falta configurar a chave de acesso da inteligência artificial. Veja em Configurações.",
   "js.erro.escritor_falhou": "O escritor de anúncios não conseguiu responder agora. Tente de novo em instantes.",
+  "js.erro.legenda_recusada": "As legendas escritas pela IA não passaram nas regras das redes. Motivo:",
   "js.erro.nao_conectada": "Essa rede ainda não está conectada. Conecte a conta antes de agendar ou publicar.",
   "js.erro.video_nao_aprovado": "Só vídeo aprovado pode ser agendado. Aprove o vídeo na Fila primeiro.",
   "js.erro.sem_mp4": "Esse vídeo ainda não tem o arquivo pronto. Espere o render terminar.",

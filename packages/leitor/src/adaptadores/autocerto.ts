@@ -17,6 +17,11 @@ interface JsonLdCar {
   productionDate?: string;
   mileageFromOdometer?: { value?: number | string };
   image?: string[] | string;
+  color?: string;
+  fuelType?: string;
+  vehicleTransmission?: string;
+  numberOfDoors?: number | string;
+  description?: string;
   offers?: { price?: string | number; priceCurrency?: string };
 }
 
@@ -90,6 +95,41 @@ function fotosPorDataSrc($: cheerio.CheerioAPI): string[] {
   return urls;
 }
 
+const limpa = (v: unknown): string | undefined =>
+  typeof v === "string" && v.trim() !== "" ? v.trim().replace(/\s+/g, " ") : undefined;
+
+/** Portas: inteiro de 1 a 6; qualquer outra coisa fica ausente. */
+function paraPortas(v: unknown): number | undefined {
+  const n = typeof v === "number" ? v : typeof v === "string" && /^\d+$/.test(v.trim()) ? Number(v) : undefined;
+  return n !== undefined && Number.isInteger(n) && n >= 1 && n <= 6 ? n : undefined;
+}
+
+/** Plano B: itens da seção "Opcionais" (`.opcionais_anuncio .vd-feature-grid li`), sem repetir. */
+function opcionaisPorCss($: cheerio.CheerioAPI): string[] {
+  const itens: string[] = [];
+  $(".opcionais_anuncio .vd-feature-grid li").each((_, el) => {
+    const t = limpa($(el).text());
+    if (t && !itens.includes(t)) itens.push(t);
+  });
+  return itens;
+}
+
+/** Texto "Sobre este Veículo" (`.vd-about`) com as quebras de linha preservadas. */
+function sobrePorCss($: cheerio.CheerioAPI): string | undefined {
+  const bloco = $(".vd-about").first();
+  if (bloco.length === 0) return undefined;
+  const copia = bloco.clone();
+  copia.find("br").replaceWith("\n");
+  const texto = copia
+    .text()
+    .split("\n")
+    .map((l) => l.replace(/\s+/g, " ").trim())
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+  return texto || undefined;
+}
+
 export const adaptadorAutoCerto: Adaptador = {
   nome: "autocerto",
 
@@ -113,7 +153,7 @@ export const adaptadorAutoCerto: Adaptador = {
     const $ = cheerio.load(html);
     const car = lerJsonLdCar($);
 
-    const ficha: FichaLida = { fotos: [] };
+    const ficha: FichaLida = { fotos: [], opcionais: [] };
     const definir = <K extends keyof FichaLida>(chave: K, valor: FichaLida[K] | undefined): void => {
       if (valor !== undefined) ficha[chave] = valor;
     };
@@ -134,6 +174,11 @@ export const adaptadorAutoCerto: Adaptador = {
       if (preco !== undefined) {
         definir("moeda", car.offers?.priceCurrency ?? "BRL");
       }
+      definir("cor", limpa(car.color));
+      definir("combustivel", limpa(car.fuelType));
+      definir("cambio", limpa(car.vehicleTransmission));
+      definir("portas", paraPortas(car.numberOfDoors));
+      definir("descricaoRevenda", limpa(car.description));
     }
 
     // 2. Fotos: prioriza data-src do carrossel; JSON-LD é plano B.
@@ -161,6 +206,15 @@ export const adaptadorAutoCerto: Adaptador = {
       definir("preco", preco);
       definir("moeda", moeda);
     }
+
+    if (ficha.cor === undefined) definir("cor", limpa(specPorCss($, "Cor")));
+    if (ficha.combustivel === undefined) definir("combustivel", limpa(specPorCss($, "Combustível")));
+    if (ficha.cambio === undefined) definir("cambio", limpa(specPorCss($, "Câmbio")));
+    if (ficha.portas === undefined) definir("portas", paraPortas(specPorCss($, "Portas")));
+    // O bloco "Sobre este Veículo" mantém as quebras de linha; vale mais que o
+    // description do JSON-LD (que vem em linha única).
+    definir("descricaoRevenda", sobrePorCss($) ?? ficha.descricaoRevenda);
+    ficha.opcionais = opcionaisPorCss($);
 
     // 4. Campo ainda ausente fica ausente — nunca estimado (ETAPA-4-CRITERIO.md).
     return ficha;

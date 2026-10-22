@@ -77,7 +77,7 @@ function blocoDoConector(v: VistaConector, agora: Date): string {
   if (conta.conectada && conta.tokenExpiraEm) {
     const ms = Date.parse(conta.tokenExpiraEm) - agora.getTime();
     const selo = ms <= 0 ? `<span class="selo erro">${e("contas.expirado")}</span>` : ms < 24 * 3_600_000 ? `<span class="selo espera">${e("contas.expiraEmBreve")}</span>` : "";
-    token = `<span class="linha-valor">${escaparHtml(formatarBrasilia(conta.tokenExpiraEm))}</span> ${selo}`;
+    token = `<span class="linha-valor">${escaparHtml(formatarBrasilia(conta.tokenExpiraEm))} ${selo}</span>`;
   }
   const botoes = `<button type="button" class="btn ${conta.conectada ? "outline" : "primary"} pequeno" data-abre="conectar" aria-pressed="false" aria-expanded="false">${e(conta.conectada ? "contas.reconectar" : "contas.conectar")}</button>${
     conta.conectada && c.fila && c.modos.includes("real") ? `<button type="button" class="btn outline pequeno" data-acao="renovar" data-rede="${c.id}">${e("contas.renovar")}</button>` : ""}`;

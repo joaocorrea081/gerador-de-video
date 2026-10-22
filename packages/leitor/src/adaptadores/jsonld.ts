@@ -100,7 +100,7 @@ function kmDe(v: unknown): number | undefined {
 }
 
 function fichaDe(v: Nodo, urlPagina: string | undefined): FichaLida {
-  const ficha: FichaLida = { fotos: fotosDe(v["image"], urlPagina) };
+  const ficha: FichaLida = { fotos: fotosDe(v["image"], urlPagina), opcionais: [] };
   const definir = <K extends keyof FichaLida>(chave: K, valor: FichaLida[K] | undefined): void => {
     if (valor !== undefined) ficha[chave] = valor;
   };
@@ -116,6 +116,12 @@ function fichaDe(v: Nodo, urlPagina: string | undefined): FichaLida {
   const { preco, moeda } = precoDe(v["offers"]);
   definir("preco", preco);
   definir("moeda", moeda);
+  definir("cor", nomeDe(v["color"]));
+  definir("combustivel", nomeDe(v["fuelType"]));
+  definir("cambio", nomeDe(v["vehicleTransmission"]));
+  const portas = paraNumero(typeof v["numberOfDoors"] === "string" || typeof v["numberOfDoors"] === "number" ? v["numberOfDoors"] : undefined);
+  definir("portas", portas !== undefined && Number.isInteger(portas) && portas >= 1 && portas <= 6 ? portas : undefined);
+  definir("descricaoRevenda", texto(v["description"]));
   return ficha;
 }
 
@@ -214,6 +220,6 @@ export const adaptadorJsonLd: Adaptador = {
 
   extrairFicha(html: string, url?: string): FichaLida {
     const veiculo = lerVeiculosJsonLd(html)[0];
-    return veiculo ? fichaDe(veiculo, url) : { fotos: [] };
+    return veiculo ? fichaDe(veiculo, url) : { fotos: [], opcionais: [] };
   },
 };

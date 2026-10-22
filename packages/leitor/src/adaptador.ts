@@ -14,6 +14,18 @@ export interface FichaLida {
   km?: number;
   preco?: number;
   moeda?: string;
+  cor?: string;
+  combustivel?: string;
+  cambio?: string;
+  portas?: number;
+  /**
+   * Texto livre que a revenda escreveu sobre o carro, como veio. É FONTE para
+   * o escritor, nunca saída: pode ter texto genérico da loja (financiamento,
+   * endereço). Ausente quando a página não traz.
+   */
+  descricaoRevenda?: string;
+  /** Opcionais listados na página, um por item. Os adaptadores devolvem [] quando não há lista. */
+  opcionais?: string[];
   /** URLs completas das fotos do carro, na ordem em que aparecem na página. */
   fotos: string[];
 }

@@ -333,11 +333,11 @@ function celulaPub(videoId: number, rede: Rede, p: Publicacao | undefined): stri
 export function paginaPublicacoes(videos: VideoComPublicacoes[], contadores: Contadores = SEM_CONTADORES, emAndamento = false): string {
   const todas = videos.flatMap((v) => v.publicacoes);
   const cont = (e: EstadoPublicacao) => todas.filter((p) => p.estado === e).length;
-  const resumo = `<div class="motivos">
-    <div class="caixa"><div class="num">${cont("agendada")}</div><div class="leg">${e("pub.resumo.agendadas")}</div></div>
-    <div class="caixa"><div class="num">${cont("publicada")}</div><div class="leg">${e("pub.resumo.publicadas")}</div></div>
-    <div class="caixa"><div class="num">${cont("falhou")}</div><div class="leg">${e("pub.resumo.falharam")}</div></div>
-    <div class="caixa"><div class="num">${cont("publicando") + cont("verificar")}</div><div class="leg">${e("pub.resumo.andamento")}</div></div>
+  const resumo = `<div class="resumo-pub">
+    <div><div class="num">${cont("agendada")}</div><div class="leg">${e("pub.resumo.agendadas")}</div></div>
+    <div><div class="num">${cont("publicada")}</div><div class="leg">${e("pub.resumo.publicadas")}</div></div>
+    <div><div class="num">${cont("falhou")}</div><div class="leg">${e("pub.resumo.falharam")}</div></div>
+    <div><div class="num">${cont("publicando") + cont("verificar")}</div><div class="leg">${e("pub.resumo.andamento")}</div></div>
   </div>`;
   const lista =
     videos.length === 0
@@ -358,7 +358,7 @@ export function paginaPublicacoes(videos: VideoComPublicacoes[], contadores: Con
     <p class="leg">${e("pub.subtitulo")}</p></div>
     <div class="acoes"><button type="button" class="btn ghost" data-acao="processar">${e("pub.processar")}</button></div></div>
   ${blocoAlertasEstoque(contextoTela().alertas)}
-  <section class="cartao" data-viva="sempre" data-viva-id="resumo-pub">${resumo}</section>
+  <section data-viva="sempre" data-viva-id="resumo-pub">${resumo}</section>
   ${lista}`;
   return casca({ aba: "publicacoes", titulo: nomeDaAba("publicacoes"), conteudo, contadores, atualizarACada: emAndamento || cont("agendada") > 0 ? 5000 : 15000 });
 }

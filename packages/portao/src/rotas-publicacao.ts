@@ -186,7 +186,8 @@ export async function tratarRotaPublicacao(
         responderJson(res, 200, await gerarLegendas(db, id, provedor, agora));
       } catch (e) {
         if (e instanceof ErroProvedor || e instanceof ErroLegenda) {
-          responderJson(res, 502, { erro: e.message, codigo: "escritor_falhou" });
+          // recusa das regras de escrita: o motivo rotulado vai para a tela; falha do provedor segue genérica
+          responderJson(res, 502, { erro: e.message, codigo: e instanceof ErroLegenda ? "legenda_recusada" : "escritor_falhou" });
           return true;
         }
         throw e;

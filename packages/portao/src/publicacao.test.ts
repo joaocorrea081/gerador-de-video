@@ -648,8 +648,8 @@ test("prontidão: lista item por item o que falta, e muda conforme o cliente ava
 
 const respostaLegendas = (o: Record<string, unknown> = {}) =>
   JSON.stringify({
-    instagram: { texto: "Corolla impecável, venha conhecer", hashtags: ["#corolla", "#toyota"] },
-    facebook: { texto: "Seu próximo carro está aqui", hashtags: ["#carros"] },
+    instagram: { texto: "Corolla automático com bancos de couro", hashtags: ["#corolla", "#toyota"] },
+    facebook: { texto: "Corolla automático, com revisões em dia. A loja fica no centro. Aceitamos troca.", hashtags: ["#carros"] },
     tiktok: { texto: "Olha esse Corolla", hashtags: ["#carrosusados"] },
     ...o,
   });
@@ -674,7 +674,7 @@ test("legenda: IA escreve por rede; preço, ano e km vêm da ficha, nunca da IA"
   assert.equal(r.status, 200);
   assert.equal(r.json.legendas.length, 3);
   const ig = r.json.legendas.find((l: any) => l.rede === "instagram").texto as string;
-  assert.match(ig, /Corolla impecável/);
+  assert.match(ig, /Corolla automático/);
   assert.match(ig, /Toyota Corolla • 2020 • 48\.000 km • R\$\s15\.500/);
   assert.match(ig, /#corolla #toyota/);
 });
@@ -695,6 +695,38 @@ test("legenda: IA que escreve número é rejeitada e reescrita; esgotou -> 502, 
   const ruim = await chamar("POST", `/api/videos/${id2}/legendas/gerar`);
   assert.equal(ruim.status, 502);
   assert.equal(ler<{ n: number }>("SELECT COUNT(*) AS n FROM legenda_video WHERE video_id = ?", id2).n, 0);
+});
+
+test("legenda: regra da rede e regra de como escrever recusam com o motivo rotulado", async () => {
+  const id = videoAprovado();
+  const pedidos = iaFalsa([
+    respostaLegendas({ tiktok: { texto: "Olha isso. Que carro. Vem ver.", hashtags: ["#a"] } }),
+    respostaLegendas({ facebook: { texto: "Carro lindo!! Venha ver!! Muito bom.", hashtags: [] } }),
+    respostaLegendas(),
+  ]);
+  const r = await chamar("POST", `/api/videos/${id}/legendas/gerar`);
+  assert.equal(r.status, 200);
+  assert.match(pedidos[1]!, /\[regra do TikTok\]/);
+  assert.match(pedidos[2]!, /\[como escrever\]/);
+  const id2 = videoAprovado();
+  iaFalsa(Array(3).fill(respostaLegendas({ tiktok: { texto: "Um. Dois. Três.", hashtags: ["#a"] } })));
+  const ruim = await chamar("POST", `/api/videos/${id2}/legendas/gerar`);
+  assert.equal(ruim.status, 502);
+  assert.match(ruim.json.erro, /\[regra do TikTok\]/);
+});
+
+test("legenda: texto padrão da loja é recusado com rótulo; opcional real e nome do carro passam", () => {
+  const dados = { marca: "Peugeot", modelo: "208", opcionais: ["Teto panorâmico"], descricaoRevenda: "Laudo cautelar e garantia de procedência em todos os veículos" };
+  assert.throws(() => comporLegenda("tiktok", { texto: "Tem laudo cautelar e garantia", hashtags: ["#a"] }, "f", "pt-BR", dados), /\[texto da loja\]/);
+  assert.doesNotThrow(() => comporLegenda("tiktok", { texto: "Peugeot 208 com teto panorâmico", hashtags: ["#a"] }, "f", "pt-BR", { ...dados, modelo: "208 Griffe" }));
+});
+
+test("legenda: a ficha vai formatada (campo ausente marcado), não como JSON cru", async () => {
+  const id = videoAprovado();
+  const pedidos = iaFalsa([respostaLegendas()]);
+  await chamar("POST", `/api/videos/${id}/legendas/gerar`);
+  assert.match(pedidos[0]!, /NÃO informado na ficha/);
+  assert.doesNotMatch(pedidos[0]!, /^\{"/m);
 });
 
 test("legenda: respeita o limite de cada rede e permite sobrescrever à mão (que sobrevive a nova geração)", async () => {

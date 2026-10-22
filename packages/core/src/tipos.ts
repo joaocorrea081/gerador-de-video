@@ -139,6 +139,14 @@ export interface DadosVeiculo {
   km?: number;
   preco?: number;
   revenda?: string;
+  cor?: string;
+  combustivel?: string;
+  cambio?: string;
+  portas?: number;
+  /** Texto livre da revenda: matéria-prima do escritor, nunca copiado para o anúncio. */
+  descricaoRevenda?: string;
+  /** Opcionais listados na página do carro. Ausente ou vazio quando não há. */
+  opcionais?: string[];
 }
 
 /**

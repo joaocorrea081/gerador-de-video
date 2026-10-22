@@ -56,7 +56,7 @@ export async function escreverAnuncio(
     tokensSaida += resposta.tokensSaida;
 
     try {
-      const escolha = validarResposta(resposta.textoCru, pedido.quantidadeFotos, pedido.idioma, humanizacao);
+      const escolha = validarResposta(resposta.textoCru, pedido.quantidadeFotos, pedido.idioma, humanizacao, pedido.dados);
       return { escolha, tokensEntrada, tokensSaida, tentativasUsadas: tentativa };
     } catch (erro) {
       erros.push(erro instanceof ErroValidacao ? erro.message : String(erro));

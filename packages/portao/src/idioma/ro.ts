@@ -591,6 +591,7 @@ export const RO: Record<string, string> = {
   "refazer.sugestoes": "Variații sugerate",
   "js.erro.chave_ausente": "Cheia de acces a inteligenței artificiale nu este configurată. Vezi în Setări.",
   "js.erro.escritor_falhou": "Redactorul de anunțuri nu a putut răspunde acum. Încearcă din nou în câteva momente.",
+  "js.erro.legenda_recusada": "Descrierile scrise de IA nu au trecut de regulile rețelelor. Motiv:",
   "js.erro.nao_conectada": "Rețeaua nu este încă conectată. Conectează contul înainte de a programa sau publica.",
   "js.erro.video_nao_aprovado": "Doar videoclipurile aprobate pot fi programate. Aprobă mai întâi videoclipul în Coadă.",
   "js.erro.sem_mp4": "Acest videoclip nu are încă fișierul gata. Așteaptă finalizarea randării.",

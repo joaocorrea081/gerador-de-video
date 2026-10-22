@@ -31,6 +31,7 @@ export function errosJs(idioma: Idioma): string {
 var MENSAGENS_POR_CODIGO = {
   chave_ausente: { texto: "js.erro.chave_ausente", link: { href: "/configuracoes", rotulo: "js.link.ajustes" } },
   escritor_falhou: { texto: "js.erro.escritor_falhou" },
+  legenda_recusada: { texto: "js.erro.legenda_recusada", motivo: true },
   nao_conectada: { texto: "js.erro.nao_conectada", link: { href: "/contas", rotulo: "js.link.contas" } },
   video_nao_aprovado: { texto: "js.erro.video_nao_aprovado", link: { href: "/fila", rotulo: "js.link.fila" } },
   sem_mp4: { texto: "js.erro.sem_mp4" },
@@ -44,7 +45,7 @@ var MENSAGENS_POR_CODIGO = {
 function mensagemDeErro(e) {
   var m = e && e.codigo && Object.prototype.hasOwnProperty.call(MENSAGENS_POR_CODIGO, e.codigo) ? MENSAGENS_POR_CODIGO[e.codigo] : null;
   return m
-    ? { texto: T(m.texto), link: m.link ? { href: m.link.href, rotulo: T(m.link.rotulo) } : null }
+    ? { texto: T(m.texto) + (m.motivo && e.message ? " " + e.message : ""), link: m.link ? { href: m.link.href, rotulo: T(m.link.rotulo) } : null }
     : { texto: e && e.message ? e.message : String(e), link: null };
 }
 `;
@@ -511,15 +512,28 @@ const CORPO_JS = String.raw`
   });
 
   // ---------- painéis de cada cartão ----------
+  function fecharPaineis(card) {
+    card.querySelectorAll(".painel").forEach(function (p) { p.hidden = true; });
+    card.querySelectorAll("[data-abre]").forEach(function (b) { b.setAttribute("aria-pressed", "false"); b.setAttribute("aria-expanded", "false"); });
+    card.classList.remove("aberto");
+  }
   function abrirPainel(botao, nome) {
     var card = botao.closest("[data-card]");
+    // Um cartão aberto por vez: abrir este fecha o outro.
+    document.querySelectorAll(".fila-cartao.aberto").forEach(function (o) { if (o !== card) fecharPaineis(o); });
     card.querySelectorAll(".painel").forEach(function (p) { p.hidden = p.getAttribute("data-painel") !== nome || !p.hidden; });
     card.querySelectorAll("[data-abre]").forEach(function (b) { b.setAttribute("aria-pressed", "false"); b.setAttribute("aria-expanded", "false"); });
     var aberto = card.querySelector('.painel[data-painel="' + nome + '"]:not([hidden])');
+    card.classList.toggle("aberto", !!aberto);
     if (aberto) {
       botao.setAttribute("aria-pressed", "true"); botao.setAttribute("aria-expanded", "true");
       var menos = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-      aberto.scrollIntoView({ block: "nearest", behavior: menos ? "auto" : "smooth" });
+      // O cartão muda de largura (e de lugar na grade): ler o retângulo força o layout novo antes de decidir a rolagem.
+      var comp = menos ? "auto" : "smooth";
+      var r = aberto.getBoundingClientRect();
+      // Painel mais alto que a janela: "nearest" alinharia o rodapé e jogaria o botão para fora; alinha o topo só se ele saiu da vista.
+    if (r.height > window.innerHeight) { if (r.top < 0 || r.top > window.innerHeight - 120) aberto.scrollIntoView({ block: "start", behavior: comp }); }
+        else aberto.scrollIntoView({ block: "nearest", behavior: comp });
     }
   }
   function lerOrdem(card) {
@@ -870,7 +884,7 @@ const CORPO_JS = String.raw`
         function () { definirLegenda(card, redeL, campoL.value, "manual"); aviso("ok", T("js.legendaSalva")); });
       return;
     }
-    if (acao === "fechar") { var p = el.closest(".painel"); p.hidden = true; card.querySelectorAll("[data-abre]").forEach(function (b) { b.setAttribute("aria-pressed", "false"); b.setAttribute("aria-expanded", "false"); }); return; }
+    if (acao === "fechar") { fecharPaineis(card); return; }
     if (acao === "subir") { moverFoto(el, -1); return; }
     if (acao === "descer") { moverFoto(el, 1); return; }
     if (acao === "ordem-original") {

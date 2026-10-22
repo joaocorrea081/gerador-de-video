@@ -19,6 +19,9 @@ a:not(.btn) { color: var(--dsw-alias-link); }
 h1, h2, h3, h4, p { margin: 0; }
 h2 { font-size: 18px; line-height: 26px; font-weight: 600; }
 h3 { font-size: 14px; line-height: 22px; font-weight: 600; }
+/* título da tela maior que o título do grupo (18 contra 17 não dizia qual manda) */
+main[data-aba="contas"] > div:first-child > h2, main[data-aba="estoque"] > div:first-child > h2,
+main[data-aba="publicacoes"] > .cartao-cab h2, .config-pagina > div:first-child > h2 { font-size: 22px; line-height: 30px; }
 .leg { color: var(--dsw-alias-label-secondary); font-size: 13px; line-height: 20px; }
 .fraco { color: var(--dsw-alias-label-caption); }
 
@@ -74,6 +77,7 @@ main[data-aba="contas"], main[data-aba="prontidao"],
 main[data-aba="publicacoes"] {
   display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 560px), 1fr)); gap: 24px; align-items: start;
 }
+main[data-aba="contas"] { grid-template-columns: repeat(auto-fit, minmax(min(100%, 430px), 1fr)); }
 main[data-aba="contas"] > :not(.cartao):not(.config-grupo), main[data-aba="prontidao"] > :not(.cartao):not(.config-grupo),
 main[data-aba="publicacoes"] > :not(.cartao) { grid-column: 1 / -1; }
 main[data-aba="publicacoes"] > .cartao[data-viva] { grid-column: 1 / -1; }
@@ -233,17 +237,28 @@ body[data-ds-dark-theme] .icone-lua { display: none; }
 
 /* ---------- Fila: vídeo grande à esquerda, tudo o mais empilhado na ordem em que se decide ---------- */
 .lista-fila { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 600px), 1fr)); gap: 24px; align-items: start; }
-.fila-cartao { display: grid; grid-template-columns: 208px minmax(0, 1fr); grid-template-areas: "id id" "midia corpo"; gap: 20px 24px; padding: 24px; border-radius: var(--dsw-radius-xl); }
+.fila-cartao { display: grid; grid-template-columns: 240px minmax(0, 1fr); transition: none; grid-template-areas: "id id" "midia corpo"; gap: 20px 24px; padding: 24px; border-radius: var(--dsw-radius-xl); }
 .fila-cartao > .fila-id { grid-area: id; }
 .fila-cartao > .fila-midia { grid-area: midia; }
 .fila-cartao > .fila-corpo { grid-area: corpo; }
 .fila-midia { position: sticky; top: 16px; align-self: start; display: flex; flex-direction: column; gap: 8px; }
 .fila-midia video, .fila-midia .semvideo {
-  width: 100%; height: 370px; aspect-ratio: 9 / 16; object-fit: contain; display: block;
+  width: 100%; height: auto; max-height: calc(100vh - 120px); aspect-ratio: 9 / 16; object-fit: contain; display: block;
   border-radius: var(--dsw-radius-lg); background: var(--dsw-alias-bg-module-platform);
   box-shadow: var(--dsw-elevation-stroke);
 }
-.fila-corpo { display: flex; flex-direction: column; gap: 28px; min-width: 0; max-width: 760px; }
+.fila-corpo { display: flex; flex-direction: column; gap: 28px; min-width: 0; max-width: 760px; container-type: inline-size; }
+/* Cartão com painel aberto: atravessa as colunas da grade, o vídeo cresce e o painel usa a largura. */
+.fila-cartao.aberto { grid-column: 1 / -1; grid-template-columns: clamp(300px, 26%, 400px) minmax(0, 1fr); }
+.fila-cartao.aberto > .fila-corpo { max-width: none; }
+.fila-cartao.aberto .fila-secao-texto, .fila-cartao.aberto .fila-secao-redes { max-width: 760px; }
+@container (min-width: 560px) {
+  .painel[data-painel="refazer"] .escolha-linha { display: grid; grid-template-columns: 150px minmax(0, 1fr); align-items: start; gap: 8px 16px; }
+  .painel[data-painel="refazer"] .escolha-rotulo { padding-top: 7px; }
+  .painel[data-painel="refazer"] .escolhas-form { gap: 14px; }
+  .painel[data-painel="refazer"] .sugestoes { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .painel[data-painel="editar"] .campo { max-width: 720px; }
+}
 .fila-corpo .anuncio .corpo, .fila-corpo .escolhas { max-width: 75ch; }
 .fila-id { display: flex; flex-direction: column; gap: 8px; }
 .fila-id-topo { display: flex; align-items: center; gap: 10px; }
@@ -330,7 +345,7 @@ textarea.campo { resize: vertical; min-height: 96px; }
 
 /* ---------- avisos flutuantes ---------- */
 .avisos { position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); z-index: 20; display: flex; flex-direction: column; gap: 8px; width: min(560px, calc(100% - 32px)); }
-.avisos .aviso { display: flex; justify-content: space-between; align-items: center; gap: 12px; background-color: var(--dsw-alias-bg-layer-3); box-shadow: var(--dsw-elevation-prominent); }
+.avisos .aviso { max-height: 40vh; overflow-y: auto; display: flex; justify-content: space-between; align-items: center; gap: 12px; background-color: var(--dsw-alias-bg-layer-3); box-shadow: var(--dsw-elevation-prominent); }
 .avisos .aviso.erro { background-image: linear-gradient(color-mix(in srgb, var(--dsw-alias-state-error-primary) 10%, transparent), color-mix(in srgb, var(--dsw-alias-state-error-primary) 10%, transparent)); }
 .avisos .aviso.ok { background-image: linear-gradient(color-mix(in srgb, var(--dsw-alias-state-success-primary) 12%, transparent), color-mix(in srgb, var(--dsw-alias-state-success-primary) 12%, transparent)); }
 
@@ -342,9 +357,15 @@ textarea.campo { resize: vertical; min-height: 96px; }
 /* ---------- tabela do estoque ---------- */
 .tabela { width: 100%; border-collapse: collapse; }
 .tabela th { text-align: left; font-size: 12px; font-weight: 500; color: var(--dsw-alias-label-caption); padding: 12px 16px; }
-.tabela td { padding: 16px; vertical-align: middle; box-shadow: 0 -0.5px 0 0 var(--dsw-alias-border-l3); }
+.tabela td { padding: 16px; vertical-align: middle; border-top: 0.5px solid var(--dsw-alias-border-l3); }
 .tabela .acoes { justify-content: flex-end; }
 .rolagem { overflow-x: auto; }
+.cartao.rolagem { padding: 8px; }
+.tabela th, .tabela td { padding-left: 12px; padding-right: 12px; }
+.tabela td.col-data { min-width: 10em; } /* a data numa linha, o fuso embaixo */
+.tabela th:first-child, .tabela td:first-child { min-width: 200px; }
+.tabela .col-num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.tabela .acoes { flex-wrap: nowrap; gap: 4px; }
 
 /* ---------- formulários (agendamento, ajustes) ---------- */
 .grade-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
@@ -448,8 +469,14 @@ textarea.campo { resize: vertical; min-height: 96px; }
 .motivos-validacao { color: var(--dsw-alias-state-error-primary); }
 
 /* ---------- publicações por rede, lado a lado ---------- */
-.redes-lado { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; }
-.rede-cel { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding: 12px; border-radius: var(--dsw-radius-md); background: var(--dsw-alias-bg-module-platform); min-width: 0; }
+.redes-lado { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr)); gap: 16px 24px; }
+/* sem caixa dentro do cartão: um fio no topo separa cada rede */
+.rede-cel { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding: 12px 0 0; border-top: 0.5px solid var(--dsw-alias-border-l2); min-width: 0; }
+.rede-cel .selo { white-space: normal; line-height: 18px; padding: 2px 10px; }
+main[data-aba="publicacoes"] > .cartao-cab > div:first-child { flex: 1 1 320px; min-width: 0; }
+.resumo-pub { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 16px 0; }
+.resumo-pub > div { padding: 0 24px; border-left: 0.5px solid var(--dsw-alias-border-l2); }
+.resumo-pub > div:first-child { padding-left: 0; border-left: none; }
 .rede-cel h4 { margin: 0; font-size: 13px; line-height: 20px; }
 .rede-cel .leg { overflow-wrap: anywhere; }
 
@@ -479,6 +506,8 @@ textarea.campo { resize: vertical; min-height: 96px; }
 .linha-cab-dir { display: inline-flex; align-items: center; gap: 8px; }
 .linha-rotulo { font-size: 14px; line-height: 22px; font-weight: 500; color: var(--dsw-alias-label-primary); }
 .linha:has(> .linha-valor) .linha-rotulo, .linha:has(> .acoes) .linha-rotulo:only-child { font-size: 13px; font-weight: 400; color: var(--dsw-alias-label-secondary); }
+/* o valor fica colado no rótulo; a explicação desce para depois dele */
+.linha:has(> .linha-valor) > .linha-ajuda { order: 3; }
 .linha-ajuda { margin: 0; font-size: 13px; line-height: 20px; color: var(--dsw-alias-label-secondary); max-width: 60ch; }
 .linha .campo { max-width: 420px; }
 .linha .acoes { margin-top: 2px; }
@@ -501,6 +530,11 @@ main[data-aba="agendamento"], main[data-aba="configuracoes"], main[data-aba="sit
   .config-pagina .linha:has(> .campo) > .linha-ajuda, .config-pagina .linha:has(> .opcoes) > .linha-ajuda { grid-column: 1; grid-row: 2; }
   .config-pagina .linha:has(> .campo) > .campo, .config-pagina .linha:has(> .opcoes) > .opcoes { grid-column: 2; grid-row: 1 / span 2; max-width: 360px; }
 }
+/* filtros curtos (ano, preço, km) em duas colunas: há largura, e cada um é só um número */
+.linhas-par { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr)); column-gap: 24px; border-top: 0.5px solid var(--dsw-alias-border-l2); }
+.config-pagina .linhas-par > .linha { border-top: none; }
+.config-pagina .linhas-par > .linha { display: flex; flex-direction: column; }
+.config-pagina .linhas-par > .linha > .campo { grid-column: auto; grid-row: auto; max-width: 100%; }
 /* tema: três opções lado a lado, como botões de escolha */
 .opcoes .opcao-rede { position: relative; align-items: center; height: 32px; padding: 0 14px; border-radius: var(--dsw-radius-md); border: 0.5px solid var(--dsw-alias-border-l3); font-size: 13px; background: var(--dsw-alias-bg-layer-1); transition: background-color 180ms ease; }
 .opcoes .opcao-rede:hover { background: var(--dsw-alias-interactive-bg-hover); }
@@ -558,7 +592,7 @@ main[data-aba="agendamento"], main[data-aba="configuracoes"], main[data-aba="sit
   main { padding: 16px; }
   .video { grid-template-columns: 1fr; }
   .video-player video, .semvideo { width: 100%; max-height: 360px; }
-  .fila-cartao { grid-template-columns: 1fr; grid-template-areas: "id" "midia" "corpo"; padding: 16px; gap: 20px; }
+  .fila-cartao, .fila-cartao.aberto { grid-template-columns: 1fr; grid-template-areas: "id" "midia" "corpo"; padding: 16px; gap: 20px; }
   .fila-midia video, .fila-midia .semvideo { width: auto; max-width: 100%; margin: 0 auto; }
   .fila-midia { position: static; }
   

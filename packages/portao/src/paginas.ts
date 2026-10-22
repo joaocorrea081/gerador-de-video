@@ -562,17 +562,17 @@ export function paginaEstoque(itens: ItemEstoque[], contadores: Contadores = SEM
         const nome = [p?.marca, p?.modelo, p?.ano].filter(Boolean).join(" ") || t("estoque.semNome");
         const estadoVideo = i.video ? selo(i.video.estado) : `<span class="selo">${e("estoque.semVideo")}</span>`;
         const botoes = [
-          `<button type="button" class="btn outline pequeno" data-acao="reler">${e("estoque.reler")}</button>`,
           i.temVideo
             ? ""
-            : `<button type="button" class="btn primary pequeno" data-acao="gerar-video">${e("estoque.gerar")}</button>`,
+            : `<button type="button" class="btn outline pequeno" data-acao="gerar-video">${e("estoque.gerar")}</button>`,
+          `<button type="button" class="btn ghost pequeno" data-acao="reler">${e("estoque.reler")}</button>`,
         ].join("");
         return `<tr data-card data-produto="${i.produtoId}">
           <td><div><strong>${escaparHtml(nome)}</strong></div><div class="leg"><a href="${escaparHtml(i.origemUrl)}" target="_blank" rel="noopener noreferrer">${e("estoque.verNoSite")}</a></div></td>
-          <td>${p?.preco !== undefined ? escaparHtml(formatarPreco(p.preco, p.moeda)) : "—"}</td>
-          <td>${p?.km !== undefined ? escaparHtml(formatarKm(p.km)) : "—"}</td>
-          <td>${i.quantidadeFotos}</td>
-          <td>${escaparHtml(formatarBrasilia(i.lidoEm))}</td>
+          <td class="col-num">${p?.preco !== undefined ? escaparHtml(formatarPreco(p.preco, p.moeda)) : "—"}</td>
+          <td class="col-num">${p?.km !== undefined ? escaparHtml(formatarKm(p.km)) : "—"}</td>
+          <td class="col-num">${i.quantidadeFotos}</td>
+          <td class="col-data">${escaparHtml(formatarBrasilia(i.lidoEm))}</td>
           <td>${estadoVideo}${i.saiuDoEstoqueEm ? ` <span class="selo erro" title="${escaparHtml(formatarBrasilia(i.saiuDoEstoqueEm))}">${e("estoque.saiu")}</span>` : ""}${i.totalVideos > 1 ? `<div class="leg">${escaparHtml(tp("estoque.videosFeitos", i.totalVideos))}</div>` : ""}</td>
           <td><div class="acoes">${botoes}</div></td>
         </tr>`;
@@ -580,7 +580,7 @@ export function paginaEstoque(itens: ItemEstoque[], contadores: Contadores = SEM
       .join("");
     conteudo = `<div><h2>${e("aba.estoque")}</h2><p class="leg">${escaparHtml(tp("estoque.resumo", itens.length))}</p></div>
     <div class="cartao rolagem"><table class="tabela">
-      <thead><tr><th>${e("estoque.col.carro")}</th><th>${e("estoque.col.preco")}</th><th>${e("estoque.col.km")}</th><th>${e("estoque.col.fotos")}</th><th>${e("estoque.col.lido")}</th><th>${e("estoque.col.video")}</th><th><span class="sr-only">${e("estoque.col.acoes")}</span></th></tr></thead>
+      <thead><tr><th>${e("estoque.col.carro")}</th><th class="col-num">${e("estoque.col.preco")}</th><th class="col-num">${e("estoque.col.km")}</th><th class="col-num">${e("estoque.col.fotos")}</th><th>${e("estoque.col.lido")}</th><th>${e("estoque.col.video")}</th><th><span class="sr-only">${e("estoque.col.acoes")}</span></th></tr></thead>
       <tbody>${linhas}</tbody></table></div>`;
   }
   return casca({ aba: "estoque", titulo: nomeDaAba("estoque"), conteudo, contadores, atualizarACada: emAndamento ? 5000 : 0 });
@@ -720,10 +720,12 @@ export function paginaAgendamento(ag: Agendamento, agora: Date, contadores: Cont
       campo: campo("ag-qtd", "quantidade", "number", String(ag.quantidade), ' min="1" max="100"') }),
     linha({ rotulo: t("agenda.marca"), para: "f-marca", ajuda: t("agenda.quaisAjuda"), desfazer: true,
       campo: `<input class="campo" id="f-marca" name="marca" type="text" placeholder="${e("agenda.qualquer")}" value="${escaparHtml(f.marca ?? "")}" data-inicial="${escaparHtml(f.marca ?? "")}" />` }),
+    `<div class="linhas-par">${[
     linha({ rotulo: t("agenda.anoDe"), para: "f-anomin", desfazer: true, campo: campo("f-anomin", "anoMin", "number", v(f.anoMin), ' min="0"') }),
     linha({ rotulo: t("agenda.anoAte"), para: "f-anomax", desfazer: true, campo: campo("f-anomax", "anoMax", "number", v(f.anoMax), ' min="0"') }),
     linha({ rotulo: t("agenda.precoAte"), para: "f-preco", desfazer: true, campo: campo("f-preco", "precoMax", "number", v(f.precoMax), ' min="0"') }),
-    linha({ rotulo: t("agenda.kmAte"), para: "f-km", desfazer: true, campo: campo("f-km", "kmMax", "number", v(f.kmMax), ' min="0"') }),
+    linha({ rotulo: t("agenda.kmAte"), para: "f-km", desfazer: true, campo: campo("f-km", "kmMax", "number", v(f.kmMax), ' min="0"') })
+    ].join("")}</div>`,
   ], { extra: peDoGrupo() })}
   </form>
   </div>`;

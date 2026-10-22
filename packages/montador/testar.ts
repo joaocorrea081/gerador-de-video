@@ -103,6 +103,19 @@ async function main() {
     return;
   }
 
+  if (modo === "video") {
+    // Rerenderiza um vídeo do banco, com o cardápio trocado. Uso: video <id> <saida.mp4> <modelo> <cor> <enquadramento>
+    const [id, saida, modelo, cor, enquadramento] = resto;
+    const { abrirBanco } = await import("@gerador/core");
+    const { montarProps } = await import("./src/fila.js");
+    const props = montarProps(abrirBanco(), Number(id)) as VideoCarroPropsMontador;
+    props.cardapio = { ...props.cardapio, modelo, cor, enquadramento } as typeof props.cardapio;
+    console.log(`Renderizando video ${id} (${modelo}/${cor}/${enquadramento}) -> ${saida}`);
+    await renderizarVideo(props, saida!);
+    console.log("OK", saida);
+    return;
+  }
+
   if (modo === "fotos") {
     const qtd = Number(resto[0]);
     const fundo = (resto[1] ?? "escuro") as FundoEscolha;

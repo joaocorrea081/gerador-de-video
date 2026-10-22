@@ -8,8 +8,8 @@
 // ou o que for) é lido zero vezes e portanto nunca atravessa para a saída,
 // mesmo que esteja presente no JSON — não é "aproveitado", não é "corrigido".
 
-import { FUNDOS_ESCOLHA, RITMOS_ESCOLHA, type CardapioVideo } from "@gerador/core";
-import { acharTiquesDeIA, type OpcoesHumanizacao } from "./humanizacao.js";
+import { FUNDOS_ESCOLHA, RITMOS_ESCOLHA, type CardapioVideo, type DadosVeiculo } from "@gerador/core";
+import { acharAfirmacoesDaLoja, acharNumerosInventados, acharTiquesDeIA, type OpcoesHumanizacao } from "./humanizacao.js";
 import { LIMITE_CORPO, LIMITE_TITULO, type EscolhaEscritor, type TextoAnuncio } from "./tipos.js";
 
 /** Erro de validação: dispara nova tentativa (ver ETAPA-2-CRITERIO.md). */
@@ -101,6 +101,7 @@ export function validarResposta(
   quantidadeFotos: number,
   idioma?: string,
   humanizacao: OpcoesHumanizacao = {},
+  dados: DadosVeiculo = {},
 ): EscolhaEscritor {
   let bruto: unknown;
   try {
@@ -126,6 +127,32 @@ export function validarResposta(
     const motivos = acharTiquesDeIA(resultado.texto.titulo, resultado.texto.corpo, idioma);
     if (motivos.length > 0) {
       throw new ErroValidacao(`[como escrever] texto com cara de anúncio de robô: ${motivos.join("; ")}`);
+    }
+  }
+
+  // Número em prosa: só o que está no nome do carro (marca/modelo) passa.
+  if (humanizacao.recusarNumeros !== false) {
+    const motivos = acharNumerosInventados(resultado.texto.titulo, resultado.texto.corpo, dados);
+    if (motivos.length > 0) {
+      throw new ErroValidacao(`[números] ${motivos.join("; ")}`);
+    }
+  }
+
+  // Texto livre da loja é fonte, não fato: copiar ou repetir a promessa dela é recusado.
+  // Segue o mesmo botão dos tiques (propaganda copiada é tique de anúncio).
+  if (humanizacao.recusarTiques !== false) {
+    const motivos = acharAfirmacoesDaLoja(resultado.texto.titulo, resultado.texto.corpo, dados);
+    if (motivos.length > 0) {
+      throw new ErroValidacao(`[texto da loja] ${motivos.join("; ")}`);
+    }
+  }
+
+  // Texto livre da loja é fonte, não fato: copiar ou repetir a promessa dela é recusado.
+  // Segue o mesmo botão dos tiques (propaganda copiada é tique de anúncio).
+  if (humanizacao.recusarTiques !== false) {
+    const motivos = acharAfirmacoesDaLoja(resultado.texto.titulo, resultado.texto.corpo, dados);
+    if (motivos.length > 0) {
+      throw new ErroValidacao(`[texto da loja] ${motivos.join("; ")}`);
     }
   }
 

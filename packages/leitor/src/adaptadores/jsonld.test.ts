@@ -35,7 +35,7 @@ test("genérico: campo ausente fica ausente, sem placeholder", () => {
 
 test("genérico: página sem Vehicle/Car (só AutoDealer) devolve ficha vazia", () => {
   const f = adaptadorJsonLd.extrairFicha(fixture("generico-home.html"));
-  assert.deepEqual(f, { fotos: [] });
+  assert.deepEqual(f, { fotos: [], opcionais: [] });
 });
 
 test("genérico: URLs de detalhe vêm do ItemList, completando as relativas", () => {
@@ -45,4 +45,24 @@ test("genérico: URLs de detalhe vêm do ItemList, completando as relativas", ()
     "https://autosdoze.example.com.br/estoque/vw-polo-2022-1002",
     "https://autosdoze.example.com.br/estoque/gm-onix-2020-1003",
   ]);
+});
+
+test("genérico: lê cor, combustível, câmbio, portas e descrição do JSON-LD", () => {
+  const html = fixture("generico-detalhe-ficha.html");
+  const ficha = adaptadorJsonLd.extrairFicha(html);
+  assert.equal(ficha.cor, "Branco");
+  assert.equal(ficha.combustivel, "Flex");
+  assert.equal(ficha.cambio, "Manual");
+  assert.equal(ficha.portas, 4);
+  assert.equal(ficha.descricaoRevenda, "Segundo dono, revisões na concessionária.");
+  assert.deepEqual(ficha.opcionais, []);
+  assert.equal(ficha.preco, 61900);
+});
+
+test("genérico: JSON-LD sem os campos novos deixa-os ausentes", () => {
+  const html = fixture("generico-detalhe-1.html");
+  const ficha = adaptadorJsonLd.extrairFicha(html);
+  for (const campo of ["cor", "combustivel", "cambio", "portas", "descricaoRevenda"] as const) {
+    assert.equal(campo in ficha, false, campo);
+  }
 });

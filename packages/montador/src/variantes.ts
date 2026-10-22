@@ -31,25 +31,33 @@ export interface ConfigVariante {
 }
 
 /**
+ * ZONA DO CARRO: a faixa horizontal da foto (fração da largura) que o recorte
+ * NUNCA pode cortar. Não há detector de carro: é uma suposição conservadora,
+ * conferida nas fotos do estoque (Astra lateral: 4,4% a 90,3%; traseira: 16,6%
+ * a 80,9%). Vertical: o carro vive entre 15% e 90% da altura.
+ * Regra completa e porquê em PADRAO-VIDEO.md.
+ */
+export const ZONA_CARRO = { x0: 0.04, x1: 0.96, y0: 0.15, y1: 0.9 } as const;
+
+/**
  * CONTA DA ESCALA (foto de origem 1024x768, 4:3, sem versão maior no CDN):
  *
- * "cheia": janela 1080x1000 (1,08:1, quase quadrada). Recorte: 1080/1024 e
- *   1000/768 -> a escala mínima que cobre a janela é max(1,055; 1,302) =
- *   1,302x. O zoom vai de 1,302x a 1,45x (teto) e a janela mostra, no pior
- *   instante (1,45x), 745x690 px da origem (73% da largura). Um recorte
- *   central estático cortaria frente/traseira do carro (o carro ocupa ~90%
- *   da largura nas fotos laterais), por isso o pan percorre a largura toda:
- *   o carro inteiro passa pela janela ao longo da cena. Um 1:1 exato exigiria
- *   1,406x o tempo todo (quase sem zoom) e cortaria o mesmo.
- *   Escala final: 1,302x a 1,45x. Nunca acima de 1,45x.
+ * O carro inteiro manda. A janela precisa mostrar a ZONA_CARRO (92% da
+ * largura) em todo instante do zoom e do pan. Com janela de 1080 px isso
+ * limita a escala a 1080/(1024*0,92) = 1,146x, bem abaixo do teto 1,45x.
+ * O teto continua valendo (nada passa dele); a escala efetiva é a menor entre
+ * o alvo, o teto e o que deixa o carro caber.
+ *
+ * "cheia": janela 1080x840. Escala mínima que cobre a janela:
+ *   max(1080/1024; 840/768) = 1,094x. Vai até 1,146x. É a janela mais alta
+ *   (840 contra 810) com recorte mínimo: enche mais o quadro sem cortar o
+ *   carro. Antes era 1080x1000 (1,302x a 1,45x) e cortava o para-choque.
  *
  * "nitida": janela 1080x810 = foto inteira em largura cheia, sem recorte.
- *   Escala base 1080/1024 = 1,055x. O movimento sobe até 1,08x (teto da
- *   variante), cortando no máximo 2,3% de cada lado no fim da cena.
- *   Escala final: 1,055x a 1,08x.
+ *   Escala 1,055x a 1,08x (teto da variante).
  */
 export const CONFIG: Record<Variante, ConfigVariante> = {
-  cheia: { larguraJanela: 1080, alturaJanela: 1000, escalaAlvoMax: 1.45, teto: 1.45 },
+  cheia: { larguraJanela: 1080, alturaJanela: 840, escalaAlvoMax: 1.45, teto: 1.45 },
   nitida: { larguraJanela: 1080, alturaJanela: 810, escalaAlvoMax: 1.08, teto: 1.08 },
 };
 
@@ -81,15 +89,30 @@ export function enquadrar(
 ): Enquadramento {
   const cfg = CONFIG[variante];
   const larguraJanela = Math.min(cfg.larguraJanela, larguraFoto * cfg.teto);
-  const alturaJanela = Math.min(cfg.alturaJanela, alturaFoto * cfg.teto);
+  // Escala que ainda deixa a zona do carro inteira dentro da janela.
+  const escalaCarro = larguraJanela / (larguraFoto * (ZONA_CARRO.x1 - ZONA_CARRO.x0));
+  // Foto mais larga que 4:3: a janela encolhe em altura em vez de cortar o carro.
+  const alturaJanela = Math.min(cfg.alturaJanela, alturaFoto * cfg.teto, alturaFoto * escalaCarro);
   const escalaMin = Math.max(larguraJanela / larguraFoto, alturaJanela / alturaFoto);
-  const escalaMax = Math.max(escalaMin, Math.min(cfg.escalaAlvoMax, cfg.teto));
+  const escalaCarroY = alturaJanela / (alturaFoto * (ZONA_CARRO.y1 - ZONA_CARRO.y0));
+  const escalaMax = Math.max(escalaMin, Math.min(cfg.escalaAlvoMax, cfg.teto, escalaCarro, escalaCarroY));
   const p = Math.min(1, Math.max(0, progresso));
   const pz = zoomIn ? p : 1 - p;
   const escala = Math.min(cfg.teto, escalaMin + (escalaMax - escalaMin) * pz);
-  const folgaX = larguraFoto * escala - larguraJanela;
-  const folgaY = alturaFoto * escala - alturaJanela;
+  // Vertical: a janela se centra na zona do carro (não no meio da foto), sem sair da foto.
+  const visivelY = Math.min(1, alturaJanela / (alturaFoto * escala));
+  const centroCarro = (ZONA_CARRO.y0 + ZONA_CARRO.y1) / 2;
+  const topoY = Math.min(1 - visivelY, Math.max(0, centroCarro - visivelY / 2));
   const pp = panAvanca ? p : 1 - p;
+  // Pan: a borda esquerda da janela (fração da foto ampliada) só anda onde a
+  // zona do carro continua inteira dentro dela.
+  const visivel = Math.min(1, larguraJanela / (larguraFoto * escala));
+  const minimo = Math.max(0, ZONA_CARRO.x1 - visivel);
+  const maximo = Math.min(1 - visivel, ZONA_CARRO.x0);
+  const esquerda =
+    minimo <= maximo
+      ? minimo + (maximo - minimo) * pp
+      : Math.min(1 - visivel, Math.max(0, (ZONA_CARRO.x0 + ZONA_CARRO.x1) / 2 - visivel / 2));
   return {
     larguraJanela,
     alturaJanela,
@@ -97,7 +120,7 @@ export function enquadrar(
     escala,
     escalaMin,
     escalaMax,
-    x: -Math.max(0, folgaX) * pp,
-    y: -Math.max(0, folgaY) * 0.5,
+    x: -esquerda * larguraFoto * escala,
+    y: -topoY * alturaFoto * escala,
   };
 }

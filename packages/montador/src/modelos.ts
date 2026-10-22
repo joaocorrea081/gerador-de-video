@@ -53,10 +53,10 @@ export const MODELOS: Record<ModeloEscolha, ConfigModelo> = {
     id: "energico",
     nome: "Enérgico",
     personalidade:
-      "Rápido e agressivo: blocos preenchidos com a cor de destaque entram de lado em um golpe, saem cortando seco, fotos trocam em fade curto; feito para chamar atenção no feed.",
+      "Rápido e agressivo: blocos preenchidos com a cor de destaque entram de lado em um golpe e saem rápido, mas amortecidas (nunca em corte seco); fotos trocam em fade curto; feito para chamar atenção no feed.",
     transicaoSegundos: 0.3,
     curvaCena: [0.1, 0.9, 0.2, 1],
-    tag: { entrada: 0.22, saida: 0.12, deslocamento: 760, eixo: "lado", maxSegundos: 2.4, fracao: { rapido: 0.62, calmo: 0.72 }, contagem: 0.55 },
+    tag: { entrada: 0.22, saida: 0.3, deslocamento: 760, eixo: "lado", maxSegundos: 2.4, fracao: { rapido: 0.62, calmo: 0.72 }, contagem: 0.55 },
     alturaMax: { tag: 240, abertura: 300, fechamento: 340 },
   },
   numeros: {
@@ -80,6 +80,9 @@ export const MODELOS: Record<ModeloEscolha, ConfigModelo> = {
     alturaMax: { tag: 260, abertura: 320, fechamento: 350 },
   },
 };
+
+/** Saída de tag nunca dura menos que isto (7,5 frames a 30 fps): abaixo disso lê como corte seco. */
+export const SAIDA_MIN_SEGUNDOS = 0.25;
 
 export const MODELO_PADRAO: ModeloEscolha = "institucional";
 

@@ -18,6 +18,12 @@ export function salvarProduto(
     km: ficha.km,
     preco: ficha.preco,
     moeda: ficha.moeda,
+    cor: ficha.cor,
+    combustivel: ficha.combustivel,
+    cambio: ficha.cambio,
+    portas: ficha.portas,
+    descricaoRevenda: ficha.descricaoRevenda,
+    opcionais: ficha.opcionais && ficha.opcionais.length > 0 ? ficha.opcionais : undefined,
   });
 
   // Upsert por origem_url (índice único da migração v3): relido o mesmo carro,

@@ -363,8 +363,15 @@ test("erro sem código conhecido continua mostrando a mensagem do servidor", () 
   assert.equal(mensagemDeErro(Object.assign(new Error("x"), { codigo: "constructor" })).texto, "x");
 });
 
+test("cartão da fila com painel aberto ocupa a largura inteira e só um fica aberto", () => {
+  assert.match(ESTILO, /\.fila-cartao\.aberto \{ grid-column: 1 \/ -1;/);
+  assert.match(CLIENTE_JS, /querySelectorAll\("\.fila-cartao\.aberto"\)\.forEach\(function \(o\) \{ if \(o !== card\) fecharPaineis\(o\)/);
+  assert.match(CLIENTE_JS, /card\.classList\.toggle\("aberto", !!aberto\)/);
+});
+
 test("painéis embutidos rolam para a vista e respeitam movimento reduzido", async () => {
-  assert.match(CLIENTE_JS, /scrollIntoView\(\{ block: "nearest", behavior: menos \? "auto" : "smooth" \}\)/);
+  assert.match(CLIENTE_JS, /scrollIntoView\(\{ block: "nearest", behavior: comp \}\)/);
+  assert.match(CLIENTE_JS, /var comp = menos \? "auto" : "smooth"/);
   assert.match(CLIENTE_JS, /matchMedia\("\(prefers-reduced-motion: reduce\)"\)/);
   assert.match(CLIENTE_JS, /setAttribute\("aria-expanded", "true"\)/);
   semear();

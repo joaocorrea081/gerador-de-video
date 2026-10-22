@@ -17,11 +17,12 @@ test("escala nunca passa do teto da variante, em nenhum progresso", () => {
   }
 });
 
-test("cheia: 1024x768 vai de 1,302x a 1,45x; nitida de 1,055x a 1,08x", () => {
+test("cheia: 1024x768 vai de 1,094x a 1,146x (o carro inteiro manda; o teto 1,45x segue valendo); nitida de 1,055x a 1,08x", () => {
   const c0 = enquadrar(1024, 768, "cheia", 0, true, true);
   const c1 = enquadrar(1024, 768, "cheia", 1, true, true);
-  assert.ok(Math.abs(c0.escala - 1000 / 768) < 1e-9);
-  assert.ok(Math.abs(c1.escala - 1.45) < 1e-9);
+  assert.ok(Math.abs(c0.escala - 840 / 768) < 1e-9);
+  assert.ok(Math.abs(c1.escala - 1080 / (1024 * 0.92)) < 1e-9);
+  assert.ok(c1.escala <= 1.45);
   const n0 = enquadrar(1024, 768, "nitida", 0, true, true);
   const n1 = enquadrar(1024, 768, "nitida", 1, true, true);
   assert.ok(Math.abs(n0.escala - 1080 / 1024) < 1e-9);

@@ -605,6 +605,7 @@ export const EN = {
   "refazer.sugestoes": "Suggested variations",
   "js.erro.chave_ausente": "The AI access key is not configured. See Settings.",
   "js.erro.escritor_falhou": "The ad writer could not answer right now. Try again in a moment.",
+  "js.erro.legenda_recusada": "The captions the AI wrote did not pass the network rules. Reason:",
   "js.erro.nao_conectada": "That network is not connected yet. Connect the account before scheduling or publishing.",
   "js.erro.video_nao_aprovado": "Only approved videos can be scheduled. Approve the video in the Queue first.",
   "js.erro.sem_mp4": "That video does not have its file ready yet. Wait for the render to finish.",
