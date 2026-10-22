@@ -1,6 +1,7 @@
 // Monta o pedido (system + user) enviado ao provedor de IA.
 
 import { FUNDOS_ESCOLHA, RITMOS_ESCOLHA } from "@gerador/core";
+import { REGRAS_DE_TEXTO_HUMANO } from "./humanizacao.js";
 import { LIMITE_CORPO, LIMITE_TITULO, type ExemploRejeicao, type PedidoEscritor } from "./tipos.js";
 
 function formatarExemplos(exemplos: ExemploRejeicao[]): string {
@@ -26,6 +27,9 @@ export function montarPedidoSistema(): string {
     `- ritmo: ${RITMOS_ESCOLHA.join(" | ")}`,
     "- ordemFotos: lista de índices (começando em 0) das fotos que existem, na ordem que você quer usar",
     "- texto do anúncio (título e corpo), que você escreve",
+    "",
+    ...REGRAS_DE_TEXTO_HUMANO,
+    "Texto fora dessas regras é recusado e você terá que reescrever.",
     "",
     "Responda APENAS com um JSON válido, sem nenhum texto fora dele, exatamente no formato:",
     '{"texto":{"titulo":"...","corpo":"..."},"cardapio":{"fundo":"...","ritmo":"..."},"ordemFotos":[0,1,2]}',

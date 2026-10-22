@@ -9,6 +9,7 @@
 // mesmo que esteja presente no JSON — não é "aproveitado", não é "corrigido".
 
 import { FUNDOS_ESCOLHA, RITMOS_ESCOLHA, type CardapioVideo } from "@gerador/core";
+import { acharTiquesDeIA, type OpcoesHumanizacao } from "./humanizacao.js";
 import { LIMITE_CORPO, LIMITE_TITULO, type EscolhaEscritor, type TextoAnuncio } from "./tipos.js";
 
 /** Erro de validação: dispara nova tentativa (ver ETAPA-2-CRITERIO.md). */
@@ -92,9 +93,15 @@ function sanitizarOrdemFotos(bruto: unknown, quantidadeFotos: number): number[] 
  * Valida e sanitiza a resposta cru do modelo. Lança ErroValidacao em JSON
  * inválido, campo fora do cardápio, ou texto acima do limite — essas três
  * disparam nova tentativa no chamador (ver escritor.ts). Índice de foto
- * inválido/duplicado é sanitizado aqui mesmo, sem erro.
+ * inválido/duplicado é sanitizado aqui mesmo, sem erro. Texto com tique de IA
+ * (humanizacao.ts) também lança ErroValidacao, a menos que desligado.
  */
-export function validarResposta(textoCru: string, quantidadeFotos: number): EscolhaEscritor {
+export function validarResposta(
+  textoCru: string,
+  quantidadeFotos: number,
+  idioma?: string,
+  humanizacao: OpcoesHumanizacao = {},
+): EscolhaEscritor {
   let bruto: unknown;
   try {
     bruto = JSON.parse(textoCru);
@@ -107,9 +114,20 @@ export function validarResposta(textoCru: string, quantidadeFotos: number): Esco
   }
   const objeto = bruto as Record<string, unknown>;
 
-  return {
+  const resultado = {
     texto: validarTexto(objeto.texto),
     cardapio: validarCardapio(objeto.cardapio),
     ordemFotos: sanitizarOrdemFotos(objeto.ordemFotos, quantidadeFotos),
   };
+
+  // Tique de IA recusa como fundo fora do cardápio: dispara nova tentativa,
+  // com o motivo no pedido seguinte. Ligado por padrão (ver humanizacao.ts).
+  if (humanizacao.recusarTiques !== false) {
+    const motivos = acharTiquesDeIA(resultado.texto.titulo, resultado.texto.corpo, idioma);
+    if (motivos.length > 0) {
+      throw new ErroValidacao(`[como escrever] texto com cara de anúncio de robô: ${motivos.join("; ")}`);
+    }
+  }
+
+  return resultado;
 }

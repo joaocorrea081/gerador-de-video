@@ -139,11 +139,12 @@ export function botoesDeSugestoes(lista: readonly CardapioCompleto[], atual: Pic
   return lista
     .map((s) => {
       const dados = escaparHtml(JSON.stringify({ modelo: s.modelo, cor: s.cor, enquadramento: s.enquadramento }));
-      const linhas = CAMPOS_VARIACAO.map((campo) => {
+      const nomes = CAMPOS_VARIACAO.map((campo) => {
         const mudou = s[campo] !== atual[campo];
-        return `<span class="sug-linha${mudou ? " mudou" : ""}"><span class="sug-rotulo">${escaparHtml(tOpcional(`cardapio.grupo.${campo}`) ?? campo)}</span><span class="sug-valor">${escaparHtml(nomeDaOpcao(campo, s[campo]))}</span></span>`;
+        const amostra = campo === "cor" ? `<i class="sug-cor" data-cor="${escaparHtml(s.cor)}" aria-hidden="true"></i>` : "";
+        return `<span class="sug-linha${mudou ? " mudou" : ""}" title="${escaparHtml(tOpcional(`cardapio.grupo.${campo}`) ?? campo)}">${amostra}<span class="sug-valor">${escaparHtml(nomeDaOpcao(campo, s[campo]))}</span></span>`;
       }).join("");
-      return `<button type="button" class="btn outline sugestao" data-sugestao="${dados}" data-chave="${escaparHtml(chaveDaVariacao(s))}" aria-pressed="false">${linhas}</button>`;
+      return `<button type="button" class="btn sugestao" data-sugestao="${dados}" data-chave="${escaparHtml(chaveDaVariacao(s))}" aria-pressed="false">${nomes}</button>`;
     })
     .join("");
 }

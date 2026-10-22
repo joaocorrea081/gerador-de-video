@@ -249,13 +249,13 @@ export function paginaCalendario(ent: EntradaCalendario): string {
   const conteudo = `
   <div class="cartao-cab" style="margin:0"><div><h2>${e("aba.calendario")}</h2>
     <p class="leg">${e("cal.fusoAviso")} ${escaparHtml(total === 0 ? t("cal.nadaMarcado") : tp("cal.marcadasNoPeriodo", total))}</p></div>
-    <div class="acoes"><a class="btn primary" href="#marcar" data-acao="ir-marcar">${e("cal.marcar.botao")}</a></div></div>
+    <div class="acoes"><a class="btn outline" href="#marcar" data-acao="ir-marcar">${e("cal.marcar.botao")}</a></div></div>
   <section class="cartao" aria-label="${e("cal.ariaCalendario", { titulo })}">
     <div class="cal-barra">
       <div class="acoes">
-        <a class="btn outline pequeno" data-nav href="${link(ent.visao, antes)}" aria-label="${e(semana ? "cal.semanaAnterior" : "cal.mesAnterior")}">${e("cal.anterior")}</a>
-        <a class="btn outline pequeno" data-nav href="${link(ent.visao, ent.hoje)}">${e("cal.hoje")}</a>
-        <a class="btn outline pequeno" data-nav href="${link(ent.visao, depois)}" aria-label="${e(semana ? "cal.proximaSemana" : "cal.proximoMes")}">${e("cal.proximo")}</a>
+        <a class="btn ghost pequeno" data-nav href="${link(ent.visao, antes)}" aria-label="${e(semana ? "cal.semanaAnterior" : "cal.mesAnterior")}">${e("cal.anterior")}</a>
+        <a class="btn ghost pequeno" data-nav href="${link(ent.visao, ent.hoje)}">${e("cal.hoje")}</a>
+        <a class="btn ghost pequeno" data-nav href="${link(ent.visao, depois)}" aria-label="${e(semana ? "cal.proximaSemana" : "cal.proximoMes")}">${e("cal.proximo")}</a>
       </div>
       <h3 class="cal-titulo" aria-live="polite">${escaparHtml(titulo)}</h3>
       <nav class="abas abas-2" aria-label="${e("cal.visao")}" style="--abas-n:2;--aba-i:${semana ? 1 : 0}">
@@ -356,7 +356,7 @@ export function paginaPublicacoes(videos: VideoComPublicacoes[], contadores: Con
   const conteudo = `
   <div class="cartao-cab" style="margin:0"><div><h2>${e("aba.publicacoes")}</h2>
     <p class="leg">${e("pub.subtitulo")}</p></div>
-    <div class="acoes"><button type="button" class="btn outline" data-acao="processar">${e("pub.processar")}</button></div></div>
+    <div class="acoes"><button type="button" class="btn ghost" data-acao="processar">${e("pub.processar")}</button></div></div>
   ${blocoAlertasEstoque(contextoTela().alertas)}
   <section class="cartao" data-viva="sempre" data-viva-id="resumo-pub">${resumo}</section>
   ${lista}`;

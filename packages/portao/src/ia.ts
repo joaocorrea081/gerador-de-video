@@ -93,8 +93,8 @@ export function secaoIA(ia: DadosIA, idiomaAnuncio: { valor: string; opcoes: str
       <p class="linha-ajuda">${escaparHtml(t("ia.variavel", { variavel: info.variavelChave }))}</p>
       <div class="grupo" data-ia-modelos>${blocoModelos(info, null, selecionado)}</div>
       <div class="acoes">
-        <button type="button" class="btn ${emUso ? "outline" : "primary"}" data-acao="ia-usar" data-provedor="${info.id}">${escaparHtml(t("ia.usar"))}</button>
-        <button type="button" class="btn outline" data-acao="ia-testar" data-provedor="${info.id}">${escaparHtml(t("ia.testar"))}</button>
+        <button type="button" class="btn outline" data-acao="ia-usar" data-provedor="${info.id}">${escaparHtml(t("ia.usar"))}</button>
+        <button type="button" class="btn ghost" data-acao="ia-testar" data-provedor="${info.id}">${escaparHtml(t("ia.testar"))}</button>
       </div>
       <p class="leg ia-resultado" data-ia-resultado role="status" aria-live="polite"></p>
     </article>`;

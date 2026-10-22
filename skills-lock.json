@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "skills": {
+    "ai-social-media-content": {
+      "source": "101-skills/superpowers",
+      "sourceType": "github",
+      "skillPath": "guides/social/ai-social-media-content/SKILL.md",
+      "computedHash": "f1f4026f2803efa668c34eff9292ebdbf0c4468b9ded50c626f17f25c0a17f0b"
+    },
+    "frontend-design": {
+      "source": "anthropics/skills",
+      "sourceType": "github",
+      "skillPath": "skills/frontend-design/SKILL.md",
+      "computedHash": "89496d5dd00f4810205f351759594fc2742bf8eea85a2f2b2d1de59f4bd91576"
+    },
+    "refactoring-ui": {
+      "source": "jaywilburn/refactoring-ui-skill",
+      "sourceType": "github",
+      "skillPath": "skills/refactoring-ui/SKILL.md",
+      "computedHash": "3d45cc9e3421842cc5bb10720b4f28180a3205c665792c498a9fcd53da9539d9"
+    },
+    "unslop": {
+      "source": "theclaymethod/unslop",
+      "sourceType": "github",
+      "skillPath": "SKILL.md",
+      "computedHash": "d72fb3b3f3ee5ff8007406910f789a278e6798ee1e90e966723bc5fe112f1bdf"
+    }
+  }
+}

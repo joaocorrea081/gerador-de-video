@@ -156,10 +156,10 @@ export function partesRedes(id: number, caminhoMp4: string | null, d: DadosRedes
     ? ""
     : `<div class="aviso info" data-sem-chave>${e("redes.semChave")} <a href="/configuracoes">${e("redes.abrirAjustes")}</a></div>`;
   const resumo = `<section class="redes redes-compacto" aria-label="${e("redes.aria")}" data-redes>
-    <div class="redes-cab"><span class="rotulo">${e("redes.titulo")}</span><div class="selos-rede">${selos}</div></div>
+    <div class="redes-cab"><div class="selos-rede">${selos}</div></div>
     ${nota}${detalhes}
   </section>`;
-  const botaoLegenda = `<button type="button" class="btn outline" data-abre="redes" aria-pressed="false" aria-expanded="false">${e("redes.abrir")}</button>`;
+  const botaoLegenda = `<button type="button" class="btn ghost" data-abre="redes" aria-pressed="false" aria-expanded="false">${e("redes.abrir")}</button>`;
   const painel = `<div class="painel" data-painel="redes" hidden>
       ${aviso}
       <div class="acoes">

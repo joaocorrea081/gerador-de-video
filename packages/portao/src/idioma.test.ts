@@ -291,7 +291,7 @@ test("telas largas: o conteúdo usa a largura, não fica numa coluna estreita", 
   assert.match(css.html, /main \{ width: 100%; max-width: 1840px/);
   assert.match(css.html, /\.lista-fila \{ display: grid; grid-template-columns: repeat\(auto-fill, minmax\(min\(100%, 600px\), 1fr\)\)/);
   assert.match(css.html, /\.fila-cartao \{ display: grid; grid-template-columns: 208px minmax\(0, 1fr\)/);
-  assert.match(css.html, /\.fila-acoes \{[^}]*justify-content: flex-start/, "decisões e ferramentas juntas à esquerda, nunca em extremos opostos");
+  assert.match(css.html, /\.fila-acoes \{[^}]*align-items: flex-start/, "decisões e ferramentas juntas à esquerda, nunca em extremos opostos");
   assert.doesNotMatch(css.html, /\.fila-acoes \{[^}]*space-between/);
   assert.match(css.html, /\.fila-midia video, \.fila-midia \.semvideo \{[^}]*height: 370px/, "altura do vídeo limitada entre 360 e 440px");
   assert.match(css.html, /\.anuncio \.corpo, \.fila-corpo \.escolhas \{ max-width: 75ch/, "medida do texto");

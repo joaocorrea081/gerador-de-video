@@ -400,9 +400,9 @@ test("Configurações, Agendamento e Sites são listas de linhas com fio de 0.5p
   assert.equal((cfg.match(/data-pe/g) ?? []).length, 3, "um Salvar/Descartar no pé de cada grupo, não um botão por campo");
   assert.match(cfg, /Instagram does not accept the file directly: it fetches the video from a web page\./);
   assert.match(cfg, /127\.0\.0\.1 does not work/);
-  assert.match(ESTILO, /\.linha \{ display: flex; flex-direction: column; gap: 6px; padding: 12px 0;/);
+  assert.match(ESTILO, /\.linha \{ display: flex; flex-direction: column; gap: 4px; padding: 16px 0;/);
   assert.match(ESTILO, /\.linha \{ border-top: 0\.5px solid var\(--dsw-alias-border-l2\); \}/);
-  assert.match(ESTILO, /\.linha-rotulo \{ font-size: 13px; line-height: 20px; font-weight: 500;/);
+  assert.match(ESTILO, /\.linha-rotulo \{ font-size: 14px; line-height: 22px; font-weight: 500;/);
   assert.match(ESTILO, /\.campo \{\s*width: 100%; min-height: 36px; padding: 6px 12px;\s*border: 0\.5px solid var\(--dsw-alias-border-l4\); border-radius: var\(--dsw-radius-md\);\s*background: var\(--dsw-alias-bg-layer-3\)/);
   assert.match(ESTILO, /\.config-pe \{[^}]*border-top: 0\.5px solid var\(--dsw-alias-border-l2\)/);
   assert.match(CLIENTE_JS, /function sujo\(f\)/);

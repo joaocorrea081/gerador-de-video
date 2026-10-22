@@ -11,3 +11,5 @@ export * from "./prompt.js";
 export * from "./escritor.js";
 export * from "./registro.js";
 export * from "./configuracao.js";
+export * from "./humanizacao.js";
+export * from "./redes.js";

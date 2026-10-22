@@ -2,6 +2,7 @@
 // novo em caso de erro, até MAXIMO_TENTATIVAS (ver ETAPA-2-CRITERIO.md).
 
 import type Database from "better-sqlite3";
+import { lerOpcoesHumanizacao, type OpcoesHumanizacao } from "./humanizacao.js";
 import { carregarMemoriaRejeicao } from "./memoria-rejeicao.js";
 import { montarPedidoSistema, montarPedidoUsuario } from "./prompt.js";
 import type { Provedor } from "./provedor.js";
@@ -30,7 +31,8 @@ export interface ResultadoEscritor {
 
 /**
  * Escreve o anúncio e as escolhas do cardápio. Em caso de JSON inválido,
- * campo fora do cardápio ou texto acima do limite, reinjeta o erro no pedido
+ * campo fora do cardápio, texto acima do limite ou texto com tique de IA
+ * (humanizacao.ts), reinjeta o erro no pedido
  * seguinte e tenta de novo, até MAXIMO_TENTATIVAS no total. Preço, ano, km e
  * modelo nunca saem daqui — eles só entram como contexto de leitura em
  * `pedido.dados` e a validação nunca copia campos extra da resposta do
@@ -40,6 +42,7 @@ export async function escreverAnuncio(
   pedido: PedidoEscritor,
   provedor: Provedor,
   exemplos: ExemploRejeicao[] = [],
+  humanizacao: OpcoesHumanizacao = lerOpcoesHumanizacao(),
 ): Promise<ResultadoEscritor> {
   const sistema = montarPedidoSistema();
   const erros: string[] = [];
@@ -53,7 +56,7 @@ export async function escreverAnuncio(
     tokensSaida += resposta.tokensSaida;
 
     try {
-      const escolha = validarResposta(resposta.textoCru, pedido.quantidadeFotos);
+      const escolha = validarResposta(resposta.textoCru, pedido.quantidadeFotos, pedido.idioma, humanizacao);
       return { escolha, tokensEntrada, tokensSaida, tentativasUsadas: tentativa };
     } catch (erro) {
       erros.push(erro instanceof ErroValidacao ? erro.message : String(erro));

@@ -314,7 +314,7 @@ function opcoesCardapio(campo: string, lista: readonly OpcaoCardapio<string>[], 
   return `<div class="opcoes" data-grupo="${campo}" role="group" aria-label="${escaparHtml(tOpcional(`cardapio.grupo.${campo}`) ?? campo)}">${lista
     .map(
       (o) =>
-        `<button type="button" class="btn outline" data-escolha="${escaparHtml(o.id)}" aria-pressed="${o.id === marcado}">${escaparHtml(tOpcional(`cardapio.${campo}.${o.id}`) ?? tOpcional(`${campo}.${o.id}`) ?? o.nome)}</button>`,
+        `<button type="button" class="btn opcao" data-escolha="${escaparHtml(o.id)}"${campo === "cor" ? ` data-cor="${escaparHtml(o.id)}"` : ""} aria-pressed="${o.id === marcado}">${escaparHtml(tOpcional(`cardapio.${campo}.${o.id}`) ?? tOpcional(`${campo}.${o.id}`) ?? o.nome)}</button>`,
     )
     .join("")}</div>`;
 }
@@ -328,9 +328,9 @@ function painelRefazer(v: VideoParaCartao): string {
   if (new Set(ordemAtual).size !== n) ordemAtual = Array.from({ length: n }, (_, i) => i);
   const fotos =
     n > 1
-      ? `<div class="grupo">
-        <span class="rotulo">${e("refazer.ordemFotos")}</span>
-        <span class="leg">${e("refazer.ordemAjuda")}</span>
+      ? `<details class="grupo-fotos">
+        <summary>${e("refazer.ordemFotos")}</summary>
+        <p class="leg">${e("refazer.ordemAjuda")}</p>
         <div class="ordem">${ordemAtual
           .map(
             (f) => `<div class="ordem-item" data-foto="${f}"><span class="n">${e("refazer.foto", { n: f + 1 })}</span>
@@ -339,22 +339,27 @@ function painelRefazer(v: VideoParaCartao): string {
           )
           .join("")}</div>
         <div><button type="button" class="btn ghost pequeno" data-acao="ordem-original">${e("refazer.ordemOriginal")}</button></div>
-      </div>`
+      </details>`
       : "";
+  const lista = listarCardapio();
+  const campoDe = (nomeLista: string): string => {
+    const campo = CAMPO_DO_CARDAPIO[nomeLista] ?? nomeLista;
+    const atual = campo === "fundo" ? v.fundo : campo === "ritmo" ? v.ritmo : v.escolhas?.[campo];
+    return `<div class="escolha-linha"><span class="escolha-rotulo">${escaparHtml(tOpcional(`cardapio.grupo.${campo}`) ?? campo)}</span>${opcoesCardapio(campo, (lista as unknown as Record<string, readonly OpcaoCardapio<string>[]>)[nomeLista] ?? [], atual)}</div>`;
+  };
+  const principais = ["modelos", "cores", "enquadramentos"].filter((k) => k in lista).map(campoDe).join("");
+  const secundarias = Object.keys(lista).filter((k) => !["modelos", "cores", "enquadramentos"].includes(k)).map(campoDe).join("");
   return `<div class="painel" data-painel="refazer" hidden>
     ${v.variacoes ? blocoVariacoes(v.variacoes, escolhaAtual({ modelo: v.escolhas?.["modelo"], cor: v.escolhas?.["cor"], enquadramento: v.escolhas?.["enquadramento"] })) : ""}
-    ${Object.entries(listarCardapio())
-      .map(([lista, opcoesDoGrupo]) => {
-        const campo = CAMPO_DO_CARDAPIO[lista] ?? lista;
-        const atual = campo === "fundo" ? v.fundo : campo === "ritmo" ? v.ritmo : v.escolhas?.[campo];
-        return `<div class="grupo"><span class="rotulo">${escaparHtml(tOpcional(`cardapio.grupo.${campo}`) ?? campo)}</span>${opcoesCardapio(campo, opcoesDoGrupo as OpcaoCardapio<string>[], atual)}</div>`;
-      })
-      .join("")}
+    <div class="escolhas-form">${principais}</div>
+    <div class="escolhas-form escolhas-sec">${secundarias}</div>
     ${fotos}
-    <p class="leg">${e("refazer.aviso")}</p>
-    <div class="acoes">
-      <button type="button" class="btn primary" data-acao="refazer">${e("refazer.confirmar")}</button>
-      <button type="button" class="btn ghost" data-acao="fechar">${e("acao.cancelar")}</button>
+    <div class="painel-pe">
+      <p class="leg">${e("refazer.aviso")}</p>
+      <div class="acoes">
+        <button type="button" class="btn ghost" data-acao="fechar">${e("acao.cancelar")}</button>
+        <button type="button" class="btn primary" data-acao="refazer">${e("refazer.confirmar")}</button>
+      </div>
     </div>
   </div>`;
 }
@@ -363,7 +368,7 @@ function painelRejeitar(): string {
   return `<div class="painel" data-painel="rejeitar" hidden>
     <span class="rotulo">${e("rejeitar.pergunta")}</span>
     <div class="opcoes">${MOTIVOS_REJEICAO.map(
-      (m) => `<button type="button" class="btn outline perigo" data-acao="rejeitar" data-motivo="${m}">${escaparHtml(rotuloDe("motivo", m))}</button>`,
+      (m) => `<button type="button" class="btn ghost" data-acao="rejeitar" data-motivo="${m}">${escaparHtml(rotuloDe("motivo", m))}</button>`,
     ).join("")}</div>
     <div class="acoes"><button type="button" class="btn ghost" data-acao="fechar">${e("acao.cancelar")}</button></div>
   </div>`;
@@ -393,19 +398,19 @@ function acoesDaFila(v: VideoParaCartao, botaoLegenda: string): string {
   }
   const decisao: string[] = [];
   if (podeAprovar) {
-    decisao.push(`<button type="button" class="btn primary" data-acao="aprovar">${e("acao.aprovar")}</button>`);
-    decisao.push(`<button type="button" class="btn outline perigo" data-abre="rejeitar" aria-pressed="false" aria-expanded="false">${e("acao.rejeitar")}</button>`);
+    decisao.push(`<button type="button" class="btn primary grande" data-acao="aprovar">${e("acao.aprovar")}</button>`);
+    decisao.push(`<button type="button" class="btn ghost perigo" data-abre="rejeitar" aria-pressed="false" aria-expanded="false">${e("acao.rejeitar")}</button>`);
   }
   const ferramentas: string[] = [];
-  if (podeRefazer) ferramentas.push(`<button type="button" class="btn outline" data-abre="refazer" aria-pressed="false" aria-expanded="false">${e("acao.refazer")}</button>`);
+  if (podeRefazer) ferramentas.push(`<button type="button" class="btn ghost" data-abre="refazer" aria-pressed="false" aria-expanded="false">${e("acao.refazer")}</button>`);
   if (podeTexto) {
-    ferramentas.push(`<button type="button" class="btn outline" data-acao="reescrever">${e("acao.reescrever")}</button>`);
-    ferramentas.push(`<button type="button" class="btn outline" data-abre="editar" aria-pressed="false" aria-expanded="false">${e("acao.editar")}</button>`);
+    ferramentas.push(`<button type="button" class="btn ghost" data-acao="reescrever">${e("acao.reescrever")}</button>`);
+    ferramentas.push(`<button type="button" class="btn ghost" data-abre="editar" aria-pressed="false" aria-expanded="false">${e("acao.editar")}</button>`);
   }
   if (botaoLegenda) ferramentas.push(botaoLegenda);
   return `<div class="fila-acoes">
-      ${decisao.length ? `<div class="acoes-grupo acoes-decisao" role="group" aria-label="${e("fila.grupoDecisao")}"><span class="acoes-rotulo">${e("fila.grupoDecisao")}</span><div class="acoes">${decisao.join("")}</div></div>` : ""}
-      ${ferramentas.length ? `<div class="acoes-grupo acoes-ferramentas" role="group" aria-label="${e("fila.grupoFerramentas")}"><span class="acoes-rotulo">${e("fila.grupoFerramentas")}</span><div class="acoes">${ferramentas.join("")}</div></div>` : ""}
+      ${decisao.length ? `<div class="acoes-grupo acoes-decisao" role="group" aria-label="${e("fila.grupoDecisao")}">${decisao.join("")}</div>` : ""}
+      ${ferramentas.length ? `<div class="acoes-grupo acoes-ferramentas" role="group" aria-label="${e("fila.grupoFerramentas")}">${ferramentas.join("")}</div>` : ""}
     </div>`;
 }
 

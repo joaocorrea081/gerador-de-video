@@ -82,10 +82,15 @@ const CORPO_JS = String.raw`
   // ---------- avisos (erros no idioma escolhido, sempre visíveis) ----------
   // extra: { fixo: true } não some sozinho; { desfazer: { segundos, aoClicar(aviso) } } traz um botão com contagem regressiva
   function aviso(tipo, texto, link, extra) {
+    if (tipo === "erro" && texto === T("js.semServidor")) { conexaoCaiu(); return null; }
     extra = extra || {};
     var area = document.getElementById("avisos");
+    // o mesmo aviso nunca empilha: se já está na tela, só se renova (some o antigo, entra um só)
+    if (!extra.desfazer) Array.prototype.forEach.call(area.querySelectorAll(".aviso"), function (velho) {
+      if (velho.getAttribute("data-tipo") === tipo && velho.getAttribute("data-texto") === texto) velho.remove();
+    });
     var el = document.createElement("div");
-    el.className = "aviso " + tipo;
+    el.className = "aviso " + tipo; el.setAttribute("data-tipo", tipo); el.setAttribute("data-texto", texto);
     el.setAttribute("role", tipo === "erro" ? "alert" : "status");
     var span = document.createElement("span");
     span.textContent = texto;
@@ -260,6 +265,11 @@ const CORPO_JS = String.raw`
     }
     if (!ligado && el) el.remove();
   }
+  // Ação do usuário que não chegou ao servidor: o mesmo aviso calmo (um só), e a tela já tenta voltar sozinha.
+  function conexaoCaiu() {
+    reconectando(true);
+    if (!retomada) tentarDeNovo();
+  }
   function atualizar(forcar, alvoId) {
     return buscarTela(location.pathname + location.search).then(function (n) {
       trocar(n, forcar, alvoId); tentativasRede = 0; reconectando(false); return true;
@@ -268,7 +278,7 @@ const CORPO_JS = String.raw`
   function tentarDeNovo() {
     clearTimeout(retomada);
     var ms = Math.min(30000, 2000 * Math.pow(2, tentativasRede)); tentativasRede++;
-    retomada = setTimeout(function () { atualizar(false).then(function (ok) { if (ok) agendarVolta(); else tentarDeNovo(); }); }, ms);
+    retomada = setTimeout(function () { retomada = null; atualizar(false).then(function (ok) { if (ok) agendarVolta(); else tentarDeNovo(); }); }, ms);
   }
   var temporizador = null;
   function agendarVolta() {
