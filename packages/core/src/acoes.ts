@@ -10,9 +10,15 @@ import type Database from "better-sqlite3";
 import { produtoSaiuDoEstoque } from "./estoque.js";
 import { criarVideoComJob, ErroPortao, obterVideo } from "./repositorio.js";
 import {
+  CORES_ESCOLHA,
+  ENQUADRAMENTOS_ESCOLHA,
   FUNDOS_ESCOLHA,
+  MODELOS_ESCOLHA,
   RITMOS_ESCOLHA,
+  type CorEscolha,
+  type EnquadramentoEscolha,
   type EstadoVideo,
+  type ModeloEscolha,
   type FundoEscolha,
   type Job,
   type RitmoEscolha,
@@ -54,7 +60,13 @@ export function textoPadraoDaFicha(dados: Record<string, unknown>): { titulo: st
 export function criarVideoDaFicha(
   db: Database.Database,
   produtoId: number,
-  escolhas: { fundo: FundoEscolha; ritmo: RitmoEscolha } = { fundo: "claro", ritmo: "calmo" },
+  escolhas: {
+    fundo: FundoEscolha;
+    ritmo: RitmoEscolha;
+    modelo?: ModeloEscolha;
+    enquadramento?: EnquadramentoEscolha;
+    cor?: CorEscolha;
+  } = { fundo: "claro", ritmo: "calmo" },
 ): { video: Video; job: Job } {
   const { titulo, corpo } = textoPadraoDaFicha(lerFicha(db, produtoId));
   return criarVideoComJob(db, { produtoId, titulo, corpo, ...escolhas, ordemFotos: [] });
@@ -63,6 +75,9 @@ export function criarVideoDaFicha(
 export interface EscolhasRefazer {
   fundo?: unknown;
   ritmo?: unknown;
+  modelo?: unknown;
+  enquadramento?: unknown;
+  cor?: unknown;
   ordemFotos?: unknown;
 }
 
@@ -95,6 +110,10 @@ export function refazerVideo(
     ritmo = escolhas.ritmo as RitmoEscolha;
   }
 
+  const modelo = escolherDaLista("modelo", MODELOS_ESCOLHA, escolhas.modelo, antigo.modelo);
+  const enquadramento = escolherDaLista("enquadramento", ENQUADRAMENTOS_ESCOLHA, escolhas.enquadramento, antigo.enquadramento);
+  const cor = escolherDaLista("cor", CORES_ESCOLHA, escolhas.cor, antigo.cor);
+
   let ordemFotos: number[] = [];
   if (escolhas.ordemFotos !== undefined) {
     ordemFotos = validarOrdemFotos(escolhas.ordemFotos, contarFotosUsaveis(db, antigo.produtoId));
@@ -120,7 +139,24 @@ export function refazerVideo(
     fundo,
     ritmo,
     ordemFotos,
+    ...(modelo ? { modelo } : {}),
+    ...(enquadramento ? { enquadramento } : {}),
+    ...(cor ? { cor } : {}),
   });
+}
+
+/** Valor novo validado contra a lista fechada; ausente herda o anterior (que pode ser null = padrão). */
+function escolherDaLista<T extends string>(
+  campo: string,
+  lista: readonly T[],
+  novo: unknown,
+  anterior: T | null,
+): T | null {
+  if (novo === undefined) return anterior;
+  if (!(lista as readonly unknown[]).includes(novo)) {
+    throw new ErroPortao(`${campo} inválido — use um de: ${lista.join(", ")}`);
+  }
+  return novo as T;
 }
 
 /** Lista de índices únicos, dentro de [0, quantidadeFotos). Vazia = ordem original. */

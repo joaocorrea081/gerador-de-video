@@ -81,6 +81,12 @@ export interface Video {
   ritmo: RitmoEscolha | null;
   /** Ordem das fotos (índices), como JSON de number[]. Null até ele rodar. */
   ordemFotosJson: string | null;
+  /** Modelo de vídeo. Null = padrão (institucional). */
+  modelo: ModeloEscolha | null;
+  /** Enquadramento da foto. Null = padrão (nitida). */
+  enquadramento: EnquadramentoEscolha | null;
+  /** Cor de destaque. Null = padrão (ambar). */
+  cor: CorEscolha | null;
 }
 
 export interface Job {

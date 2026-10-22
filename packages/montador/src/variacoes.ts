@@ -3,8 +3,12 @@
 // fotos ficam como estão). O painel oferece como sugestão; a pessoa trabalha
 // em cima da que gostar. Determinística por semente: mesma semente, mesma
 // lista; semente nova ("regenerar") dá outra.
+import type Database from "better-sqlite3";
 import {
   CORES_ESCOLHA,
+  ErroPortao,
+  PADRAO_CARDAPIO,
+  obterVideo,
   ENQUADRAMENTOS_ESCOLHA,
   MODELOS_ESCOLHA,
   type CardapioCompleto,
@@ -80,4 +84,37 @@ export function sugerirVariacoes(atual: CardapioCompleto, n: number, semente = 1
   }
   for (const c of resto) tentar(c);
   return saida;
+}
+
+/**
+ * Ponto de entrada do painel: dado um vídeo, até `n` variações diferentes da
+ * escolha atual dele (vídeo antigo conta com o padrão). Mude a `semente` para
+ * "regenerar" e ver outras.
+ */
+export function sugerirVariacoesDoVideo(
+  db: Database.Database,
+  videoId: number,
+  n = 3,
+  semente = 1,
+): CardapioCompleto[] {
+  const v = obterVideo(db, videoId);
+  if (!v) throw new ErroPortao(`vídeo ${videoId} não encontrado`);
+  const atual: CardapioCompleto = {
+    fundo: v.fundo ?? PADRAO_CARDAPIO.fundo,
+    ritmo: v.ritmo ?? PADRAO_CARDAPIO.ritmo,
+    enquadramento: v.enquadramento ?? PADRAO_CARDAPIO.enquadramento,
+    modelo: v.modelo ?? PADRAO_CARDAPIO.modelo,
+    cor: v.cor ?? PADRAO_CARDAPIO.cor,
+    ordemFotos: v.ordemFotosJson ? safeOrdem(v.ordemFotosJson) : [],
+  };
+  return sugerirVariacoes(atual, n, semente);
+}
+
+function safeOrdem(json: string): number[] {
+  try {
+    const o = JSON.parse(json) as unknown;
+    return Array.isArray(o) ? (o as number[]) : [];
+  } catch {
+    return [];
+  }
 }

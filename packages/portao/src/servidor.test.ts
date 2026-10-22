@@ -16,7 +16,7 @@ import {
   obterJobDoVideo,
   rejeitarVideo,
 } from "@gerador/core";
-import { paginaHistorico } from "./paginas.js";
+import { paginaFila } from "./paginas.js";
 
 let db: Database.Database;
 
@@ -108,25 +108,16 @@ test("job acompanha o vídeo até concluído", () => {
 // ("aguardando_aprovacao") em vez do dado (caminhoMp4 existir). Fila e
 // Histórico usam a mesma `cartaoFila`/`montarPlayer` em paginas.ts — este
 // teste falha se a condição voltar a depender do estado.
-test("histórico monta o player de vídeo (<video src=/video/:id.mp4>) para vídeo aprovado com MP4", () => {
-  const video = novoVideoAguardandoAprovacao();
-  const aprovado = aprovarVideo(db, video.id);
-  assert.equal(aprovado.estado, "aprovado");
-  assert.ok(aprovado.caminhoMp4, "pré-condição: vídeo precisa ter caminhoMp4 preenchido");
-
-  const videoParaPagina = {
-    id: aprovado.id,
-    estado: aprovado.estado,
-    titulo: aprovado.titulo,
-    corpo: aprovado.corpo,
-    fundo: aprovado.fundo,
-    ritmo: aprovado.ritmo,
-    caminhoMp4: aprovado.caminhoMp4,
-    criadoEm: aprovado.criadoEm,
-    produto: null,
-  };
-
-  const html = paginaHistorico([videoParaPagina] as never);
-  assert.match(html, new RegExp(`<video src="/video/${aprovado.id}\\.mp4"`));
-  assert.doesNotMatch(html, /sem vídeo ainda/);
+// Regressão: o player era escolhido pelo estado do vídeo ("aguardando_aprovacao") em vez do dado
+// (caminhoMp4 existir). Vídeo com MP4 pronto tem que mostrar o <video>, em qualquer estado da Fila.
+test("fila monta o player de vídeo (<video src=/video/:id.mp4>) quando há MP4, mesmo fora de aguardando_aprovacao", () => {
+  const criado = novoVideoAguardandoAprovacao();
+  const video = aprovarVideo(db, criado.id);
+  assert.ok(video.caminhoMp4, "pré-condição: vídeo precisa ter caminhoMp4 preenchido");
+  const base = { id: video.id, titulo: video.titulo, corpo: video.corpo, fundo: video.fundo, ritmo: video.ritmo, caminhoMp4: video.caminhoMp4, criadoEm: video.criadoEm, produto: null };
+  for (const estado of ["aguardando_aprovacao", "erro"]) {
+    const html = paginaFila([{ ...base, estado }] as never, { pendentes: 0, emExecucao: null, segundosPorVideo: 60, estimativaRestanteSegundos: 0, origemEstimativa: "padrao", amostras: 0 } as never);
+    assert.match(html, new RegExp(`<video src="/video/${video.id}\\.mp4"`), estado);
+    assert.doesNotMatch(html, /sem vídeo ainda/);
+  }
 });

@@ -7,7 +7,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, before, beforeEach, test } from "node:test";
 import Database from "better-sqlite3";
-import { aprovarVideo, criarVideoComJob, marcarJobConcluido, migrar, type CaracteristicasMidia, type Rede } from "@gerador/core";
+import { aprovarVideo, criarVideoComJob, marcarJobConcluido, migrar, rejeitarVideo, type CaracteristicasMidia, type Rede } from "@gerador/core";
 import { ErroConfiguracaoProvedor } from "@gerador/escritor";
 import { ERROS_JS, CLIENTE_JS } from "./cliente.js";
 import { ESTILO } from "./estilo.js";
@@ -402,12 +402,23 @@ test("fila: sem chave da IA, a legenda avisa com a mensagem humana e o atalho pa
   assert.equal(msg.link.href, "/configuracoes");
 });
 
-test("histórico: vídeo aprovado traz validação, legenda e o botão de agendar", async () => {
-  const id = video(true);
+test("histórico: o que foi publicado (rede, quando, id do post) e o que foi rejeitado; aprovado que não saiu não entra", async () => {
+  const naoSaiu = video(true);
+  const publicado = video(true);
+  await seco("instagram");
+  assert.equal((await api("POST", `/api/videos/${publicado}/publicar`, { rede: "instagram" })).status, 200);
+  const rejeitado = video(false);
+  const dbr = abrir();
+  rejeitarVideo(dbr, { videoId: rejeitado, motivo: "ritmo" });
+  dbr.close();
   const html = await pagina("/historico");
-  assert.match(html, /data-validacao="instagram"/);
-  assert.match(html, new RegExp(`href="/calendario\\?video=${id}#marcar"`));
-  assert.match(html, /Agendar publicação/);
+  assert.match(html, new RegExp(`data-id="${publicado}"`));
+  assert.match(html, /Instagram · 21\/10\/2026 12:00 \(Brasília\)/);
+  assert.match(html, /Modo seco: nada saiu de verdade/);
+  assert.match(html, /ID do post: /);
+  assert.match(html, new RegExp(`data-id="${rejeitado}"`));
+  assert.match(html, /Motivo: Ritmo\./);
+  assert.doesNotMatch(html, new RegExp(`data-id="${naoSaiu}"`));
 });
 
 test("fila: cartão com painéis acessíveis (aria-expanded) para legenda e prévia", async () => {

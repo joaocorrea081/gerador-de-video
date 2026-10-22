@@ -731,5 +731,5 @@ test("servidor escuta só em 127.0.0.1 e a migração v4 criou as tabelas", () =
   assert.equal((servidor.address() as AddressInfo).address, "127.0.0.1");
   const t = ler<{ n: number }>("SELECT COUNT(*) AS n FROM sqlite_master WHERE name IN ('conta_rede','legenda_video','publicacao')");
   assert.equal(t.n, 3);
-  assert.equal(ler<{ v: number }>("SELECT MAX(versao) AS v FROM schema_version").v, 4);
+  assert.ok(ler<{ v: number }>("SELECT MAX(versao) AS v FROM schema_version").v >= 4, "migração v4 (publicação) aplicada");
 });

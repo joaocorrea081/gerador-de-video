@@ -1,4 +1,5 @@
 import type Database from "better-sqlite3";
+import { CORES_ESCOLHA, ENQUADRAMENTOS_ESCOLHA, MODELOS_ESCOLHA } from "./tipos.js";
 
 interface Migracao {
   versao: number;
@@ -210,6 +211,21 @@ const MIGRACOES: readonly Migracao[] = [
           (SELECT p.dados_json FROM produto p
             WHERE p.id = video.produto_id AND p.lido_em <= video.atualizado_em)
         WHERE caminho_mp4 IS NOT NULL AND dados_snapshot_json IS NULL;
+      `);
+    },
+  },
+  {
+    versao: 6,
+    // Cardápio completo no vídeo: modelo, enquadramento e cor. Colunas
+    // opcionais (NULL = padrão do montador: institucional, nitida, ambar),
+    // com CHECK espelhando as listas fechadas do core. Vídeo antigo fica NULL.
+    descricao: "modelo, enquadramento e cor de destaque em video",
+    aplicar: (db) => {
+      const lista = (v: readonly string[]) => v.map((x) => `'${x}'`).join(", ");
+      db.exec(`
+        ALTER TABLE video ADD COLUMN modelo TEXT CHECK (modelo IS NULL OR modelo IN (${lista(MODELOS_ESCOLHA)}));
+        ALTER TABLE video ADD COLUMN enquadramento TEXT CHECK (enquadramento IS NULL OR enquadramento IN (${lista(ENQUADRAMENTOS_ESCOLHA)}));
+        ALTER TABLE video ADD COLUMN cor TEXT CHECK (cor IS NULL OR cor IN (${lista(CORES_ESCOLHA)}));
       `);
     },
   },

@@ -18,6 +18,7 @@ import {
 } from "@gerador/core";
 import { secaoIA, type DadosIA } from "./ia.js";
 import type { Site } from "@gerador/leitor";
+import { traduzirErro } from "./erros.js";
 import { chave, grupo, linha, peDoGrupo } from "./linhas.js";
 import { formatarKm, formatarPreco } from "./dinheiro.js";
 import { formatarBrasilia, formatarDuracao } from "./tempo.js";
@@ -228,6 +229,10 @@ export interface VideoParaCartao {
   atualizadoEm?: string;
   quantidadeFotos?: number;
   ordemFotos?: number[];
+  /** Há outro vídeo do mesmo carro sendo refeito: este cartão fica travado até ele terminar. */
+  bloqueadoPorRefazer?: boolean;
+  /** Escolhas do cardápio que o vídeo guarda (para o painel de refazer marcar a atual). */
+  escolhas?: Record<string, string | null | undefined>;
   /** Validação, legenda e prévia por rede (só vídeos com MP4 pronto). */
   redes?: DadosRedes | null;
   /** Motivos (chaves) de vídeos anteriores do mesmo carro que foram rejeitados. */
@@ -273,11 +278,15 @@ function escolhasDoVideo(v: VideoParaCartao): string {
   return escaparHtml(t("cartao.escolhas", { fundo, ritmo }));
 }
 
-function anuncio(v: VideoParaCartao): string {
+function textoDoAnuncio(v: VideoParaCartao): string {
   return `<div class="anuncio">
     <div class="titulo">${escaparHtml(v.titulo ?? t("cartao.semTitulo"))}</div>
     <div class="corpo">${escaparHtml(v.corpo ?? "")}</div>
-  </div>
+  </div>`;
+}
+
+function anuncio(v: VideoParaCartao): string {
+  return `${textoDoAnuncio(v)}
   <div class="escolhas">${escolhasDoVideo(v)}</div>`;
 }
 
@@ -391,20 +400,45 @@ function identidadeDoCarro(v: VideoParaCartao): string {
     </header>`;
 }
 
-function cartaoFila(v: VideoParaCartao): string {
-  const redes = v.redes ? partesRedes(v.id, v.caminhoMp4, v.redes) : null;
-  const abertoParaDecidir = v.estado === "aguardando_aprovacao";
-  return `<article class="cartao fila-cartao${abertoParaDecidir ? " pede-decisao" : ""}" data-card data-id="${v.id}" id="video-${v.id}">
-    <div class="fila-midia"><div class="video-player">${player(v)}</div></div>
+function desabilitar(html: string): string {
+  return html.replace(/<button type="button"/g, '<button type="button" disabled');
+}
+
+/** Estado de trabalho do cartão: mostra que está sendo feito, com progresso, e trava as ações (disabled de verdade). */
+function blocoTrabalho(v: VideoParaCartao, progresso?: ProgressoFila): string {
+  const exec = progresso?.emExecucao;
+  if (exec && exec.videoId === v.id) {
+    const pct = Math.min(95, Math.round((exec.haSegundos / Math.max(1, progresso!.segundosPorVideo)) * 100));
+    return `<div class="barra" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}" aria-label="${e("progresso.andamento")}"><span style="width:${pct}%"></span></div>
+      <p class="leg">${escaparHtml(t("fila.refazendoProgresso", { tempo: formatarDuracao(exec.haSegundos), pct }))}</p>`;
+  }
+  return `<div class="barra indeterminada" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-label="${e("progresso.andamento")}"><span></span></div>
+      <p class="leg">${e("fila.refazendoNaFila")}</p>`;
+}
+
+function cartaoFila(v: VideoParaCartao, progresso?: ProgressoFila): string {
+  const fazendo = v.estado === "rascunho" || v.estado === "renderizando";
+  const travado = fazendo || v.bloqueadoPorRefazer === true;
+  const redes = v.redes && !travado ? partesRedes(v.id, v.caminhoMp4, v.redes) : null;
+  const abertoParaDecidir = v.estado === "aguardando_aprovacao" && !travado;
+  const acoes = acoesDaFila(v, redes?.botaoLegenda ?? "");
+  const estadoTrabalho = fazendo
+    ? `<section class="fila-secao trabalho-estado" role="status" aria-live="polite"><p>${e("fila.refazendo")}</p>${blocoTrabalho(v, progresso)}</section>`
+    : v.bloqueadoPorRefazer
+      ? `<section class="fila-secao trabalho-estado" role="status"><p>${e("fila.bloqueado")}</p><div class="barra indeterminada" role="progressbar" aria-label="${e("progresso.andamento")}"><span></span></div></section>`
+      : "";
+  return `<article class="cartao fila-cartao${abertoParaDecidir ? " pede-decisao" : ""}${travado ? " trabalhando" : ""}" data-card data-id="${v.id}" id="video-${v.id}"${travado ? ' aria-busy="true"' : ""}>
+    ${identidadeDoCarro(v)}
+    <div class="fila-midia"><div class="video-player">${player(v)}</div><div class="escolhas">${escolhasDoVideo(v)}</div></div>
     <div class="fila-corpo">
-      ${identidadeDoCarro(v)}
-      <section class="fila-secao" aria-label="${e("fila.secaoTexto")}">${anuncio(v)}</section>
+      <section class="fila-secao fila-secao-texto" aria-label="${e("fila.secaoTexto")}">${textoDoAnuncio(v)}</section>
+      ${estadoTrabalho}
       ${redes ? `<section class="fila-secao" aria-label="${e("fila.secaoRedes")}">${redes.resumo}</section>` : ""}
       <section class="fila-secao fila-secao-acoes" aria-label="${e("fila.secaoAcoes")}">
-        ${acoesDaFila(v, redes?.botaoLegenda ?? "")}
-        ${v.estado === "aguardando_aprovacao" ? painelRejeitar() : ""}
-        ${v.estado === "aguardando_aprovacao" || v.estado === "erro" ? painelRefazer(v) : ""}
-        ${v.estado === "aguardando_aprovacao" || v.estado === "erro" || v.estado === "rascunho" ? painelEditar(v) : ""}
+        ${travado ? desabilitar(acoes) : acoes}
+        ${!travado && v.estado === "aguardando_aprovacao" ? painelRejeitar() : ""}
+        ${!travado && (v.estado === "aguardando_aprovacao" || v.estado === "erro") ? painelRefazer(v) : ""}
+        ${!travado && (v.estado === "aguardando_aprovacao" || v.estado === "erro" || v.estado === "rascunho") ? painelEditar(v) : ""}
         ${redes?.painel ?? ""}
       </section>
     </div>
@@ -444,7 +478,7 @@ export function paginaFila(videos: VideoParaCartao[], progresso: ProgressoFila, 
           <p class="leg">${e("fila.vazio.texto")}</p>
           <div class="acoes"><a class="btn primary" href="/agendamento">${e("fila.vazio.buscar")}</a><a class="btn outline" href="/estoque">${e("fila.vazio.estoque")}</a></div>
         </div>`
-      : ativos.map(cartaoFila).join("");
+      : ativos.map((v) => cartaoFila(v, progresso)).join("");
   const conteudo = `
   <div class="cartao-cab" style="margin:0">
     <div><h2>${e("aba.fila")}</h2><p class="leg">${aguardando > 0 ? escaparHtml(tp("fila.aguardando", aguardando)) : e("fila.instrucao")}</p></div>
@@ -586,7 +620,7 @@ export function paginaAgendamento(ag: Agendamento, agora: Date, contadores: Cont
   if (r) {
     const novos = r.itens.filter((i) => i.enfileirado).length;
     resultado = r.erro
-      ? `<div class="aviso erro">${e("agenda.rodadaFalhou", { erro: r.erro })}</div>`
+      ? `<div class="aviso erro">${e("agenda.rodadaFalhou", { erro: traduzirErro(r.erro) })}</div>`
       : `<p class="linha-valor">${escaparHtml(t("agenda.ultimaRodada", { vistos: tp("agenda.carrosVistos", r.itens.length), novos: tp("agenda.videosNovos", novos) }))}</p>`;
     const pulados = (r.sites ?? []).filter((s) => s.estado === "pulado-agendada");
     if (pulados.length > 0) resultado += `<div class="aviso info">${e("agenda.pulados", { sites: pulados.map((s) => s.url).join(", ") })}</div>`;
@@ -605,7 +639,7 @@ export function paginaAgendamento(ag: Agendamento, agora: Date, contadores: Cont
   <div class="config-pagina">
   <div><h2>${e("aba.agendamento")}</h2><p class="leg">${e("agenda.subtitulo")}</p></div>
 
-  ${grupo(e("agenda.buscaAuto"), [
+  ${grupo(e("agenda.grupoQuando"), [
     linha({
       rotulo: t("agenda.buscaAuto"),
       ajuda: t(ag.ligado ? "agenda.ligadaTexto" : "agenda.desligadaTexto"),

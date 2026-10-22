@@ -4,6 +4,7 @@ export * from "./migracoes.js";
 export * from "./banco.js";
 export * from "./repositorio.js";
 export * from "./acoes.js";
+export * from "./cardapio.js";
 export * from "./midia.js";
 export * from "./publicacao.js";
 export * from "./pausa.js";

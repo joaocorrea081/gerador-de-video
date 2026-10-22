@@ -11,6 +11,7 @@ import {
   marcarJobEmExecucao,
   marcarJobFalhou,
   obterVideo,
+  PADRAO_CARDAPIO,
   proximoJobPendente,
   recuperarJobsOrfaos,
   textoPadraoDaFicha,
@@ -88,7 +89,7 @@ function buscarFotosDoVideo(db: Database.Database, produtoId: number, ordemFotos
 }
 
 /** Monta as props do Remotion a partir das linhas `produto`/`video` já persistidas. */
-function montarProps(db: Database.Database, videoId: number): VideoCarroProps {
+export function montarProps(db: Database.Database, videoId: number): VideoCarroProps {
   const video = obterVideo(db, videoId);
   if (!video) throw new Error(`vídeo ${videoId} não encontrado`);
 
@@ -110,8 +111,11 @@ function montarProps(db: Database.Database, videoId: number): VideoCarroProps {
     anuncio: { titulo: tituloEscrito, corpo: corpoEscrito },
     fotos: buscarFotosDoVideo(db, video.produtoId, video.ordemFotosJson),
     cardapio: {
-      fundo: video.fundo ?? "claro",
-      ritmo: video.ritmo ?? "calmo",
+      fundo: video.fundo ?? PADRAO_CARDAPIO.fundo,
+      ritmo: video.ritmo ?? PADRAO_CARDAPIO.ritmo,
+      enquadramento: video.enquadramento ?? PADRAO_CARDAPIO.enquadramento,
+      modelo: video.modelo ?? PADRAO_CARDAPIO.modelo,
+      cor: video.cor ?? PADRAO_CARDAPIO.cor,
     },
   };
 }

@@ -417,7 +417,7 @@ export function paginaProntidao(
       : t("pront.usoSemLimite", { usado: r.uso24h.usado });
     return `<section class="config-grupo" data-rede="${r.rede}" id="prontidao-${r.rede}">
       <div><h3>${escaparHtml(r.nome)} ${estado}</h3>
-        <p class="linha-ajuda">${faltam === 0 ? e("pront.todosCumpridos") : escaparHtml(tp("pront.itensFaltam", faltam))}</p></div></div>
+        <p class="linha-ajuda">${faltam === 0 ? e("pront.todosCumpridos") : escaparHtml(tp("pront.itensFaltam", faltam))}</p></div>
       <ul class="checklist">${r.itens
         .map(
           (i) => `<li class="${i.ok ? "ok" : "falta"}"><span class="marca-item" aria-hidden="true">${i.ok ? "✓" : "✗"}</span>
@@ -429,16 +429,16 @@ export function paginaProntidao(
     </section>`;
   };
   const conteudo = `
-  <div><h2>${e("aba.prontidao")}</h2><p class="leg">${e("pront.subtitulo")}</p></div>
+  <div><h2>${e("aba.prontidao")}</h2><p class="leg">${e("pront.subtitulo")}</p><p class="leg">${e("pront.glossario")}</p></div>
   ${faixa}
   ${redes.map(cartao).join("")}
-  <section class="cartao">
+  <section class="config-grupo">
     <h3 style="margin-bottom:8px">${e("pront.legendaIa")}</h3>
     <p>${ia.ok ? `<span class="selo ok">${e("ajustes.ia.presente")}</span>` : `<span class="selo erro">${e("ajustes.ia.ausente")}</span>`}</p>
     ${ia.ok ? "" : `<p class="leg" style="margin-top:8px">${e("pront.semChave")} <a href="/configuracoes" data-nav>${e("redes.abrirAjustes")}</a></p>`}
     <p class="leg" style="margin-top:8px">${e("pront.limiteLegenda", { lista: REDES.map((r) => `${NOMES_REDE[r]} ${LIMITE_LEGENDA[r]}`).join(", ") })}</p>
   </section>
-  <section class="cartao">
+  <section class="config-grupo">
     <h3 style="margin-bottom:8px">${e("pront.providenciar.titulo")}</h3>
     <p class="leg" style="margin-bottom:8px">${e("pront.providenciar.texto")}</p>
     <ul class="lista-simples">${PROVIDENCIAR.map((n) => `<li>${e(`pront.prov.${n}` as Chave)}</li>`).join("")}</ul>

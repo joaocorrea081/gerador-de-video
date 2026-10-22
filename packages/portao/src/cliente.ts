@@ -122,7 +122,7 @@ const CORPO_JS = String.raw`
   }
 
   // ---------- atualização sozinha, sem perder o que a pessoa está fazendo ----------
-  var assinatura = null;
+  var assinatura = null; var navegando = false;
   function principal() { return document.getElementById("conteudo"); }
   function semVivos(raiz) {
     var c = raiz.cloneNode(true);
@@ -155,23 +155,74 @@ const CORPO_JS = String.raw`
     });
     document.title = m.getAttribute("data-titulo") + " — " + T("app.nome");
   }
-  function trocar(novo, forcar) {
+  // Cada cartão guarda a assinatura do HTML que o servidor mandou. Só se troca o cartão cujo HTML mudou:
+  // o resto da lista (vídeo tocando, texto sendo editado, posição de rolagem) não é tocado.
+  function marcarAssinaturas(raiz) {
+    raiz.querySelectorAll("#lista-fila > [data-id]").forEach(function (c) { if (c.sig === undefined) c.sig = c.outerHTML; });
+  }
+  function cartaoOcupado(c) {
+    if (c.querySelector(".painel:not([hidden]), .btn.ocupado, details[open]")) return true;
+    var a = document.activeElement;
+    if (a && c.contains(a) && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)) return true;
+    var vs = c.querySelectorAll("video");
+    for (var i = 0; i < vs.length; i++) if (!vs[i].paused && !vs[i].ended) return true;
+    return false;
+  }
+  function reconciliarLista(atual, nova, alvoId) {
+    var porId = {};
+    Array.prototype.forEach.call(atual.children, function (c) { var id = c.getAttribute("data-id"); if (id) porId[id] = c; });
+    var cartoesNovos = Array.prototype.filter.call(nova.children, function (n) { return n.getAttribute("data-id"); });
+    if (cartoesNovos.length === 0 || Object.keys(porId).length === 0) { // lista vazia (ou voltando de vazia): troca tudo
+      atual.innerHTML = nova.innerHTML; marcarAssinaturas(atual); return;
+    }
+    var vistos = {};
+    cartoesNovos.forEach(function (n, posicao) {
+      var id = n.getAttribute("data-id"); vistos[id] = true;
+      var existente = porId[id]; var no;
+      if (!existente) { no = n; no.sig = n.outerHTML; }
+      else if (existente.sig === n.outerHTML) { no = existente; }
+      else if (!cartaoOcupado(existente) || id === alvoId) { n.sig = n.outerHTML; existente.replaceWith(n); no = n; }
+      else { no = existente; }
+      if (atual.children[posicao] !== no) atual.insertBefore(no, atual.children[posicao] || null);
+    });
+    Object.keys(porId).forEach(function (id) { if (!vistos[id] && (!cartaoOcupado(porId[id]) || id === alvoId)) porId[id].remove(); });
+  }
+  function atualizarVivos(m, novo) {
+    novo.querySelectorAll('[data-viva="sempre"]').forEach(function (n) {
+      var alvo = m.querySelector('[data-viva-id="' + n.getAttribute("data-viva-id") + '"]');
+      if (alvo) alvo.innerHTML = n.innerHTML;
+    });
+  }
+  function trocar(novo, forcar, alvoId) {
     var m = principal();
-    var nova = semVivos(novo);
-    var mudou = nova !== assinatura;
-    var podeTrocar = forcar || !ocupado();
-    if (mudou && podeTrocar) {
-      m.innerHTML = novo.innerHTML; assinatura = nova;
+    var rolagem = window.scrollY;
+    var listaAtual = m.querySelector("#lista-fila"); var listaNova = novo.querySelector("#lista-fila");
+    if (listaAtual && listaNova && m.getAttribute("data-aba") === novo.getAttribute("data-aba")) {
+      atualizarVivos(m, novo);
+      var cabA = m.querySelector(".cartao-cab"); var cabN = novo.querySelector(".cartao-cab");
+      if (cabA && cabN && cabA.innerHTML !== cabN.innerHTML) cabA.innerHTML = cabN.innerHTML;
+      reconciliarLista(listaAtual, listaNova, alvoId);
     } else {
-      novo.querySelectorAll('[data-viva="sempre"]').forEach(function (n) {
-        var alvo = m.querySelector('[data-viva-id="' + n.getAttribute("data-viva-id") + '"]');
-        if (alvo) alvo.innerHTML = n.innerHTML;
-      });
+      var nova = semVivos(novo);
+      var mudou = nova !== assinatura;
+      var podeTrocar = forcar || !ocupado();
+      if (mudou && podeTrocar) {
+        // quem navega por teclado não pode perder o lugar quando a tela se atualiza
+        var foco = document.activeElement; var focoAcao = foco && foco.getAttribute ? foco.getAttribute("data-acao") : null;
+        var focoSite = foco && foco.getAttribute ? foco.getAttribute("data-site") : null; var focoId = foco && foco.id;
+        m.innerHTML = novo.innerHTML; assinatura = nova;
+        var volta = focoId ? document.getElementById(focoId) : (focoAcao ? m.querySelector('[data-acao="' + focoAcao + '"]' + (focoSite ? '[data-site="' + focoSite + '"]' : "")) : null);
+        if (volta && m.contains(volta) && foco !== document.body) volta.focus({ preventScroll: true });
+      } else {
+        atualizarVivos(m, novo);
+      }
+      marcarAssinaturas(m);
     }
     ["data-contadores", "data-poll", "data-titulo", "data-aba"].forEach(function (k) {
       m.setAttribute(k, novo.getAttribute(k) || "");
     });
     atualizarContagem(); marcarAba(); prepararTela();
+    if (Math.abs(window.scrollY - rolagem) > 1 && !navegando) window.scrollTo(0, rolagem); // atualizar nunca mexe na rolagem
   }
   function buscarTela(url) {
     return fetch(url, { headers: { "x-painel": "1" } }).then(function (r) { return r; }, function () {
@@ -193,9 +244,9 @@ const CORPO_JS = String.raw`
     }
     if (!ligado && el) el.remove();
   }
-  function atualizar(forcar) {
+  function atualizar(forcar, alvoId) {
     return buscarTela(location.pathname + location.search).then(function (n) {
-      trocar(n, forcar); tentativasRede = 0; reconectando(false); return true;
+      trocar(n, forcar, alvoId); tentativasRede = 0; reconectando(false); return true;
     }).catch(function (e) { if (e && e.rede) reconectando(true); return false; });
   }
   function tentarDeNovo() {
@@ -217,7 +268,7 @@ const CORPO_JS = String.raw`
   function irPara(url, empilhar) {
     return buscarTela(url).then(function (n) {
       if (empilhar) history.pushState({}, "", url);
-      assinatura = null; trocar(n, true); agendarVolta();
+      assinatura = null; navegando = true; trocar(n, true); navegando = false; agendarVolta();
       var h = location.hash && document.getElementById(location.hash.slice(1));
       if (h) h.scrollIntoView({ block: "start" }); else window.scrollTo(0, 0);
       principal().focus({ preventScroll: true });
@@ -274,17 +325,26 @@ const CORPO_JS = String.raw`
     todos.forEach(function (b) { if (!b.disabled) { b.disabled = true; b.setAttribute("data-reabilitar", "1"); } });
     botao.setAttribute("data-rotulo", botao.textContent);
     botao.textContent = texto; botao.classList.add("ocupado");
+    // o cartão inteiro se mostra trabalhando, e nada nele pode ser clicado de novo
+    card.classList.add("trabalhando"); card.setAttribute("aria-busy", "true");
+    var faixa = null;
+    if (card.hasAttribute("data-id") && card.querySelector(".fila-corpo")) {
+      faixa = document.createElement("div"); faixa.className = "trabalho-acao"; faixa.setAttribute("role", "status"); faixa.textContent = texto;
+      card.querySelector(".fila-corpo").insertBefore(faixa, card.querySelector(".fila-corpo").firstChild);
+    }
     return function liberar() {
+      card.classList.remove("trabalhando"); card.removeAttribute("aria-busy"); if (faixa) faixa.remove();
       todos.forEach(function (b) { if (b.getAttribute("data-reabilitar")) { b.disabled = false; b.removeAttribute("data-reabilitar"); } });
       if (document.body.contains(botao)) { botao.textContent = botao.getAttribute("data-rotulo"); botao.classList.remove("ocupado"); }
     };
   }
   function executar(botao, textoOcupado, fazer, aoTerminar) {
+    var cartaoAlvo = botao.closest("[data-card]"); var alvoId = cartaoAlvo ? cartaoAlvo.getAttribute("data-id") : null;
     var liberar = ocupar(botao, textoOcupado);
     return fazer().then(function (r) {
       liberar();
       if (aoTerminar) aoTerminar(r);
-      return atualizar(true);
+      return atualizar(true, alvoId);
     }, function (e) {
       liberar();
       var m = mensagemDeErro(e);
@@ -789,7 +849,7 @@ const CORPO_JS = String.raw`
   });
 
   window.addEventListener("DOMContentLoaded", function () {
-    assinatura = semVivos(principal());
+    assinatura = semVivos(principal()); marcarAssinaturas(principal());
     marcarAba(); atualizarContagem(); prepararTela(); agendarVolta();
   });
 })();

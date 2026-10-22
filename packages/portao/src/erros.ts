@@ -35,6 +35,9 @@ const PADROES: [RegExp, string, Extrator][] = [
   [/^publicação (\d+) não encontrada$/, "core.publicacaoNaoEncontrada", (m) => ({ id: m[1]! })],
   [/^Não dá para desmarcar uma publicação "(.+)"\.$/, "core.naoDesmarcar", (m) => ({ estado: minusculo("pub.estado", m[1]!) })],
   [/^Não dá para remarcar uma publicação "(.+)"\.$/, "core.naoRemarcar", (m) => ({ estado: minusculo("pub.estado", m[1]!) })],
+  [/^O site (.+) já está cadastrado\.$/, "core.siteJaCadastrado", (m) => ({ id: m[1]! })],
+  [/^Site não cadastrado: (.+)$/, "core.siteNaoCadastrado", (m) => ({ id: m[1]! })],
+  [/^Nenhum site ativo cadastrado\. Cadastre um site para o sistema ler\.$/, "core.nenhumSiteAtivo", nenhum],
   [/^A legenda não pode ficar vazia\.$/, "core.legendaVazia", nenhum],
   [/^Legenda com (\d+) caracteres; o limite do (.+) é (\d+)\.$/, "core.legendaLonga", (m) => ({ n: m[1]!, rede: m[2]!, limite: m[3]! })],
 ];

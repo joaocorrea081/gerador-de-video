@@ -71,11 +71,11 @@ main { width: 100%; max-width: 1840px; margin: 0 auto; padding: 8px clamp(20px, 
 
 /* telas feitas de cartões aproveitam a largura: os cartões formam colunas, o resto (títulos, avisos) ocupa a linha toda */
 main[data-aba="contas"], main[data-aba="prontidao"],
-main[data-aba="publicacoes"], main[data-aba="historico"] {
+main[data-aba="publicacoes"] {
   display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 560px), 1fr)); gap: 24px; align-items: start;
 }
 main[data-aba="contas"] > :not(.cartao):not(.config-grupo), main[data-aba="prontidao"] > :not(.cartao):not(.config-grupo),
-main[data-aba="publicacoes"] > :not(.cartao), main[data-aba="historico"] > :not(.cartao) { grid-column: 1 / -1; }
+main[data-aba="publicacoes"] > :not(.cartao) { grid-column: 1 / -1; }
 main[data-aba="publicacoes"] > .cartao[data-viva] { grid-column: 1 / -1; }
 .pular {
   position: absolute; left: 8px; top: -120px; z-index: 40;
@@ -229,8 +229,11 @@ body[data-ds-dark-theme] .icone-lua { display: none; }
 
 /* ---------- Fila: vídeo grande à esquerda, tudo o mais empilhado na ordem em que se decide ---------- */
 .lista-fila { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 600px), 1fr)); gap: 24px; align-items: start; }
-.fila-cartao { display: grid; grid-template-columns: 208px minmax(0, 1fr); gap: 24px; padding: 24px; border-radius: var(--dsw-radius-xl); }
-.fila-midia { position: sticky; top: 16px; align-self: start; }
+.fila-cartao { display: grid; grid-template-columns: 208px minmax(0, 1fr); grid-template-areas: "id id" "midia corpo"; gap: 20px 24px; padding: 24px; border-radius: var(--dsw-radius-xl); }
+.fila-cartao > .fila-id { grid-area: id; }
+.fila-cartao > .fila-midia { grid-area: midia; }
+.fila-cartao > .fila-corpo { grid-area: corpo; }
+.fila-midia { position: sticky; top: 16px; align-self: start; display: flex; flex-direction: column; gap: 8px; }
 .fila-midia video, .fila-midia .semvideo {
   width: 100%; height: 370px; aspect-ratio: 9 / 16; object-fit: contain; display: block;
   border-radius: var(--dsw-radius-lg); background: var(--dsw-alias-bg-module-platform);
@@ -240,14 +243,23 @@ body[data-ds-dark-theme] .icone-lua { display: none; }
 .fila-corpo .anuncio .corpo, .fila-corpo .escolhas { max-width: 75ch; }
 .fila-id { display: flex; flex-direction: column; gap: 8px; }
 .fila-id-topo { display: flex; align-items: center; gap: 10px; }
-.fila-nome { font-size: 24px; line-height: 32px; font-weight: 600; overflow-wrap: anywhere; }
+.fila-nome { font-size: 22px; line-height: 32px; font-weight: 600; overflow-wrap: anywhere; }
 .fila-preco { font-size: 20px; line-height: 28px; font-weight: 600; }
-.fila-secao { display: flex; flex-direction: column; gap: 12px; padding-top: 20px; box-shadow: 0 -0.5px 0 0 var(--dsw-alias-border-l3); }
+.fila-secao { display: flex; flex-direction: column; gap: 12px; padding-top: 16px; box-shadow: 0 -0.5px 0 0 var(--dsw-alias-border-l3); }
+.fila-secao-texto { padding-top: 0; box-shadow: none; }
 .fila-secao-acoes { gap: 16px; }
 .fila-acoes { display: flex; flex-wrap: wrap; gap: 14px 28px; align-items: flex-end; justify-content: flex-start; }
 .acoes-grupo { display: flex; flex-direction: column; gap: 6px; }
 .acoes-rotulo { font-size: 11px; line-height: 18px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--dsw-alias-label-caption); }
 .acoes-decisao { padding: 10px 12px 12px; border-radius: var(--dsw-radius-lg); background: var(--dsw-alias-bg-module-platform); }
+.trabalho-estado { gap: 8px; }
+.trabalho-estado p { margin: 0; }
+.barra.indeterminada > span { width: 35%; animation: deslizar 1400ms ease-in-out infinite alternate; }
+@keyframes deslizar { from { transform: translateX(0); } to { transform: translateX(185%); } }
+.fila-cartao.trabalhando .video-player { opacity: 0.85; }
+.trabalho-acao { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: var(--dsw-radius-md); background: var(--dsw-alias-bg-module-platform); font-size: 13px; line-height: 20px; color: var(--dsw-alias-label-secondary); }
+.trabalho-acao::before { content: ""; width: 12px; height: 12px; flex: none; border-radius: 50%; border: 1.5px solid currentColor; border-right-color: transparent; animation: girar 800ms linear infinite; }
+tr.trabalhando { opacity: 0.7; }
 .redes-compacto { gap: 8px; }
 .detalhes summary {
   display: inline-flex; align-items: center; gap: 8px; cursor: pointer; list-style: none; user-select: none;
@@ -315,6 +327,7 @@ textarea.campo { resize: vertical; min-height: 96px; }
 .avisos .aviso.ok { background-image: linear-gradient(color-mix(in srgb, var(--dsw-alias-state-success-primary) 12%, transparent), color-mix(in srgb, var(--dsw-alias-state-success-primary) 12%, transparent)); }
 
 /* ---------- vazio ---------- */
+.cartao.vazio { grid-column: 1 / -1; }
 .vazio { padding: 40px 16px; text-align: center; display: flex; flex-direction: column; gap: 6px; align-items: center; }
 .vazio .grande { font-size: 16px; font-weight: 600; }
 
@@ -458,15 +471,15 @@ textarea.campo { resize: vertical; min-height: 96px; }
 .config-pe { display: flex; gap: 8px; padding-top: 12px; border-top: 0.5px solid var(--dsw-alias-border-l2); }
 .config-pe[hidden] { display: none; }
 .cartao.pagina-config { padding: 0; background: transparent; box-shadow: none; }
-main[data-aba="agendamento"], main[data-aba="configuracoes"], main[data-aba="sites"] { max-width: 1000px; }
+main[data-aba="agendamento"], main[data-aba="configuracoes"], main[data-aba="sites"], main[data-aba="historico"] { max-width: 1000px; }
 .config-pagina { display: flex; flex-direction: column; gap: 32px; }
 
 /* ---------- chave (switch): o ESTADO aparece na posição e na cor ---------- */
 .chave { flex: none; display: inline-flex; align-items: center; padding: 0; border: none; background: transparent; cursor: pointer; border-radius: 999px; }
-.chave-trilho { position: relative; width: 40px; height: 22px; border-radius: 999px; background: var(--dsw-alias-border-l4); transition: background-color 180ms ease; }
-.chave-bola { position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; border-radius: 50%; background: var(--dsw-alias-bg-layer-3); box-shadow: var(--dsw-elevation-stroke); transition: transform 180ms ease; }
-.chave[aria-checked="true"] .chave-trilho { background: var(--dsw-alias-button-primary-fill); }
-.chave[aria-checked="true"] .chave-bola { transform: translateX(18px); }
+.chave-trilho { position: relative; width: 40px; height: 22px; border-radius: 999px; background: var(--dsw-alias-bg-module-platform); box-shadow: inset 0 0 0 1px var(--dsw-alias-border-l4); transition: background-color 180ms ease; }
+.chave-bola { position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; border-radius: 50%; background: var(--dsw-alias-label-secondary); box-shadow: var(--dsw-elevation-stroke); transition: transform 180ms ease; }
+.chave[aria-checked="true"] .chave-trilho { background: var(--dsw-alias-button-primary-fill); box-shadow: none; }
+.chave[aria-checked="true"] .chave-bola { transform: translateX(18px); background: var(--dsw-alias-label-primary-foreground); }
 .chave:focus-visible { outline-offset: 3px; }
 .chave:disabled { opacity: 0.4; cursor: not-allowed; }
 .chave-linha { display: flex; align-items: center; gap: 12px; }
@@ -502,6 +515,7 @@ main[data-aba="agendamento"], main[data-aba="configuracoes"], main[data-aba="sit
 .ia-cab { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; flex-wrap: wrap; }
 .ia-cab h4 { font-size: 13px; line-height: 20px; font-weight: 500; }
 .ia-provedor label { font-size: 13px; font-weight: 600; }
+.ia-provedor .campo { max-width: 420px; }
 .ia-resultado:empty { display: none; }
 .ia-resultado.ok { color: var(--dsw-alias-state-success-primary); }
 .ia-resultado.erro { color: var(--dsw-alias-state-error-primary); }
@@ -510,7 +524,7 @@ main[data-aba="agendamento"], main[data-aba="configuracoes"], main[data-aba="sit
   main { padding: 16px; }
   .video { grid-template-columns: 1fr; }
   .video-player video, .semvideo { width: 100%; max-height: 360px; }
-  .fila-cartao { grid-template-columns: 1fr; padding: 16px; gap: 20px; }
+  .fila-cartao { grid-template-columns: 1fr; grid-template-areas: "id" "midia" "corpo"; padding: 16px; gap: 20px; }
   .fila-midia video, .fila-midia .semvideo { width: auto; max-width: 100%; margin: 0 auto; }
   .fila-midia { position: static; }
   

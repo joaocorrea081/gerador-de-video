@@ -211,7 +211,15 @@ async function tratarRequisicaoNoIdioma(req: IncomingMessage, res: ServerRespons
         const ia = iaDisponivel(deps);
         const brutos = listarVideosPorEstado(db, ["rascunho", "renderizando", "aguardando_aprovacao", "erro"]);
         const videos = [];
-        for (const b of brutos) videos.push({ ...anexarProduto(db, b), redes: await dadosRedes(db, b, deps, ia) });
+        // produto com vídeo sendo feito: os outros cartões do mesmo carro ficam travados até ele terminar
+        const emFeitura = new Set(brutos.filter((b) => b.estado === "rascunho" || b.estado === "renderizando").map((b) => b.produtoId));
+        for (const b of brutos) {
+          videos.push({
+            ...anexarProduto(db, b),
+            bloqueadoPorRefazer: b.estado !== "rascunho" && b.estado !== "renderizando" && emFeitura.has(b.produtoId),
+            redes: await dadosRedes(db, b, deps, ia),
+          });
+        }
         responderHtml(res, 200, paginaFila(videos as never, progressoFila(db, deps.agora()), contadoresDe(db)));
       } finally {
         db.close();

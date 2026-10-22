@@ -137,7 +137,7 @@ test("cada uma das 9 telas responde 200 com a barra lateral, as 9 seções e o t
 test("telas vazias dizem o que fazer, não ficam em branco", async () => {
   assert.match((await pegar("/fila")).html, /Nenhum vídeo esperando você/);
   assert.match((await pegar("/estoque")).html, /Nenhum carro lido ainda/);
-  assert.match((await pegar("/historico")).html, /Nada aprovado ainda/);
+  assert.match((await pegar("/historico")).html, /Nada saiu ainda/);
 });
 
 test("Fila: mostra o progresso (quantos faltam, qual renderiza, quanto falta)", async () => {
@@ -213,20 +213,20 @@ test("Estoque: preço, km, fotos, quando foi lido (Brasília) e estado do vídeo
   assert.match(com, /data-acao="reler"/);
 });
 
-test("Histórico: mostra o motivo da rejeição anterior do mesmo carro", async () => {
+test("Histórico: só o que saiu (publicado ou rejeitado, com o motivo); vídeo aprovado que não saiu é fila, não histórico", async () => {
   semear();
   const v1 = videoPronto();
   const db = abrir();
   rejeitarVideo(db, { videoId: v1, motivo: "foto_ruim" });
-  db.close();
   const v2 = videoPronto();
-  const db2 = abrir();
-  db2.prepare("UPDATE video SET estado = 'aprovado' WHERE id = ?").run(v2);
-  db2.close();
+  db.prepare("UPDATE video SET estado = 'aprovado' WHERE id = ?").run(v2);
+  db.close();
   const { html } = await pegar("/historico");
-  assert.match(html, new RegExp(`<video src="/video/${v2}\\.mp4"`));
-  assert.match(html, /rejeitado por: Foto ruim/);
-  assert.match(html, /Aprovado/);
+  assert.match(html, /Tudo o que já saiu/, "o propósito da tela fica escrito no topo");
+  assert.match(html, /Rejeitado em \d\d\/\d\d\/\d{4}[^<]*Motivo: Foto ruim\./);
+  assert.match(html, /Rejeitados <span class="fraco">1<\/span>/);
+  assert.match(html, /Publicados <span class="fraco">0<\/span>/);
+  assert.doesNotMatch(html, new RegExp(`data-id="${v2}"`), "aprovado e não publicado não é histórico");
 });
 
 test("Agendamento: converte a hora UTC para Brasília", async () => {
@@ -242,7 +242,8 @@ test("Agendamento: converte a hora UTC para Brasília", async () => {
   assert.match(html, /21\/10\/2026 12:00 \(Brasília\)/, "última rodada 15:00Z = 12:00");
   assert.match(html, /21\/10\/2026 13:00 \(Brasília\)/, "próxima = 13:00");
   assert.doesNotMatch(html, /2026-10-21T15:00/);
-  assert.match(html, /data-acao="desligar"/);
+  assert.match(html, /role="switch" class="chave" aria-checked="true"[^>]*data-acao="agendamento-alternar"/);
+  assert.doesNotMatch(html, /data-acao="(ligar|desligar)"/, "sem botão Ligar/Desligar: a chave mostra o estado");
   assert.match(html, /data-acao="rodar-agora"/);
   assert.match(html, /<option value="60" selected>/);
 });
@@ -250,7 +251,7 @@ test("Agendamento: converte a hora UTC para Brasília", async () => {
 test("Agendamento: desligado explica que nada roda sozinho", async () => {
   const { html } = await pegar("/agendamento");
   assert.match(html, /Desligado: nada roda sozinho/);
-  assert.match(html, /data-acao="ligar"/);
+  assert.match(html, /role="switch" class="chave" aria-checked="false"[^>]*data-acao="agendamento-alternar"/);
   assert.match(html, /Ainda não rodou/);
 });
 

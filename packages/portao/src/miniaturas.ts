@@ -1,8 +1,9 @@
-// Miniatura do vídeo: UM quadro tirado do MP4 com ffmpeg, guardado em cache ao lado do vídeo.
+// Miniatura do vídeo: UM quadro tirado do MP4 com ffmpeg, guardado em cache ao lado do banco (dados/miniaturas).
 // A tela nunca carrega o MP4 inteiro só para mostrar uma figura pequena.
 import { execFile } from "node:child_process";
 import { existsSync, mkdirSync, renameSync, statSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { CAMINHO_BANCO } from "@gerador/core";
 
 export type GeradorDeMiniatura = (mp4: string, destino: string) => Promise<void>;
 
@@ -37,7 +38,8 @@ const emAndamento = new Map<string, Promise<string>>();
 
 /** Caminho do JPG em cache (cria se faltar). Lança se o vídeo não existe ou o ffmpeg falha. */
 export function miniaturaDoVideo(mp4: string, id: number, gerar: GeradorDeMiniatura = gerarComFfmpeg): Promise<string> {
-  const pasta = join(dirname(mp4), ".miniaturas");
+  // O cache fica ao lado do banco (dados/miniaturas), ou onde GERADOR_PASTA_MINIATURAS mandar: nunca dentro da pasta dos vídeos.
+  const pasta = process.env["GERADOR_PASTA_MINIATURAS"] ?? join(dirname(CAMINHO_BANCO), "miniaturas");
   const destino = join(pasta, `${id}-${versaoDoArquivo(mp4)}.jpg`);
   if (existsSync(destino)) return Promise.resolve(destino);
   const andando = emAndamento.get(destino);

@@ -9,7 +9,10 @@ import {
   type Ajuste,
   type EstadoJob,
   type EstadoVideo,
+  type CorEscolha,
+  type EnquadramentoEscolha,
   type FundoEscolha,
+  type ModeloEscolha,
   type Job,
   type MotivoRejeicao,
   type Rejeicao,
@@ -33,6 +36,9 @@ interface LinhaVideo {
   fundo: string | null;
   ritmo: string | null;
   ordem_fotos_json: string | null;
+  modelo: string | null;
+  enquadramento: string | null;
+  cor: string | null;
 }
 
 function linhaParaVideo(l: LinhaVideo): Video {
@@ -48,6 +54,9 @@ function linhaParaVideo(l: LinhaVideo): Video {
     fundo: l.fundo as FundoEscolha | null,
     ritmo: l.ritmo as RitmoEscolha | null,
     ordemFotosJson: l.ordem_fotos_json,
+    modelo: l.modelo as ModeloEscolha | null,
+    enquadramento: l.enquadramento as EnquadramentoEscolha | null,
+    cor: l.cor as CorEscolha | null,
   };
 }
 
@@ -82,6 +91,10 @@ export interface NovoVideoEntrada {
   fundo: FundoEscolha;
   ritmo: RitmoEscolha;
   ordemFotos: readonly number[];
+  /** Opcionais: ausente = NULL = padrão do montador. */
+  modelo?: ModeloEscolha;
+  enquadramento?: EnquadramentoEscolha;
+  cor?: CorEscolha;
 }
 
 /** Cria o vídeo (estado inicial "rascunho") e o job pendente que o acompanha, numa transação. */
@@ -92,8 +105,8 @@ export function criarVideoComJob(db: Database.Database, entrada: NovoVideoEntrad
     const resultadoVideo = db
       .prepare(
         `INSERT INTO video
-          (produto_id, estado, caminho_mp4, criado_em, atualizado_em, titulo, corpo, fundo, ritmo, ordem_fotos_json)
-         VALUES (?, 'rascunho', NULL, ?, ?, ?, ?, ?, ?, ?)`,
+          (produto_id, estado, caminho_mp4, criado_em, atualizado_em, titulo, corpo, fundo, ritmo, ordem_fotos_json, modelo, enquadramento, cor)
+         VALUES (?, 'rascunho', NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         entrada.produtoId,
@@ -104,6 +117,9 @@ export function criarVideoComJob(db: Database.Database, entrada: NovoVideoEntrad
         entrada.fundo,
         entrada.ritmo,
         JSON.stringify(entrada.ordemFotos),
+        entrada.modelo ?? null,
+        entrada.enquadramento ?? null,
+        entrada.cor ?? null,
       );
     const videoId = Number(resultadoVideo.lastInsertRowid);
 

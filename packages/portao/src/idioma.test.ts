@@ -257,18 +257,21 @@ test("tema: ícone discreto no topo (sem botão com texto na barra lateral); as 
   for (const tela of TELAS) {
     const { html } = await pegar(tela, "en");
     assert.match(html, /<header class="barra-topo">[\s\S]*id="alternar-tema"[^>]*aria-label="Switch to dark theme"/, tela);
-    assert.doesNotMatch(html, /lateral-pe/, `${tela}: nada de botão de tema no pé da barra lateral`);
+    assert.doesNotMatch(html, /class="lateral-pe">\s*<button/, `${tela}: nada de botão de tema no pé da barra lateral`);
+    assert.match(html, /class="lateral-pe"><a href="\/configuracoes"[^>]*>/, `${tela}: Configurações ancoradas no rodapé da barra`);
     assert.doesNotMatch(html, /class="nav-rotulo">(Dark|Light) theme</);
   }
   const { html } = await pegar("/configuracoes", "en");
-  assert.deepEqual([...html.matchAll(/name="tema" value="(\w+)"/g)].map((m) => m[1]), ["claro", "escuro", "sistema"]);
+  assert.deepEqual([...html.matchAll(/name="tema" value="(\w+)"/g)].map((m) => m[1]), ["light", "dark", "system"]);
+  for (const rotulo of ["Light", "Dark", "Follow the system"]) assert.match(html, new RegExp(`name="tema" value="\\w+"[^>]*/> <span>${rotulo}</span>`), `rótulo do tema em inglês: ${rotulo}`);
+  assert.doesNotMatch(html, /<span>(claro|escuro|sistema)<\/span>/i);
   assert.match(html, /Follow the system/);
   assert.match(html, /<option value="en" selected>English<\/option>/);
   assert.match(html, /<option value="pt-BR">Português \(Brasil\)<\/option>/);
   assert.match(html, /<option value="ro">Română<\/option>/);
   assert.match(html, /<option value="ru">Русский<\/option>/);
   // aplicado antes da pintura, com "seguir o sistema"
-  assert.match(html, /p==="sistema"&&window\.matchMedia\("\(prefers-color-scheme: dark\)"\)\.matches/);
+  assert.match(html, /\(p==="sistema"\|\|p==="system"\)&&window\.matchMedia\("\(prefers-color-scheme: dark\)"\)\.matches/);
   assert.match(html, /<body>\s*<script>try\{var p=localStorage/);
   assert.match(CLIENTE_JS, /prefers-color-scheme: dark/);
   assert.match(CLIENTE_JS, /guardarTema\(t\.value\)/);
@@ -286,8 +289,12 @@ test("Configurações é a rota nova; /ajustes redireciona (link antigo continua
 test("telas largas: o conteúdo usa a largura, não fica numa coluna estreita", async () => {
   const css = await pegar("/painel.css");
   assert.match(css.html, /main \{ width: 100%; max-width: 1840px/);
-  assert.match(css.html, /\.lista-fila \{ display: grid; grid-template-columns: repeat\(auto-fit, minmax\(min\(100%, 820px\), 1fr\)\)/);
-  assert.match(css.html, /\.fila-cartao \{ display: grid; grid-template-columns: minmax\(260px, 380px\) minmax\(0, 1fr\)/);
+  assert.match(css.html, /\.lista-fila \{ display: grid; grid-template-columns: repeat\(auto-fill, minmax\(min\(100%, 600px\), 1fr\)\)/);
+  assert.match(css.html, /\.fila-cartao \{ display: grid; grid-template-columns: 208px minmax\(0, 1fr\)/);
+  assert.match(css.html, /\.fila-acoes \{[^}]*justify-content: flex-start/, "decisões e ferramentas juntas à esquerda, nunca em extremos opostos");
+  assert.doesNotMatch(css.html, /\.fila-acoes \{[^}]*space-between/);
+  assert.match(css.html, /\.fila-midia video, \.fila-midia \.semvideo \{[^}]*height: 370px/, "altura do vídeo limitada entre 360 e 440px");
+  assert.match(css.html, /\.anuncio \.corpo, \.fila-corpo \.escolhas \{ max-width: 75ch/, "medida do texto");
   assert.match(css.html, /main\[data-aba="contas"\], main\[data-aba="prontidao"\]/);
   assert.doesNotMatch(css.html, /max-width: 1080px/);
 });

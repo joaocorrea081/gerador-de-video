@@ -14,5 +14,5 @@ export {
 export { VARIANTES, type Variante, type VideoCarroPropsMontador } from "./variantes.js";
 export { MODELOS, MODELO_PADRAO, type ConfigModelo } from "./modelos.js";
 export { contraste, resolverDestaque, textoSobre, CONTRASTE_MIN_DESTAQUE, CONTRASTE_MIN_TEXTO } from "./cor.js";
-export { sugerirVariacoes } from "./variacoes.js";
+export { sugerirVariacoes, sugerirVariacoesDoVideo } from "./variacoes.js";
 export { extrairCorDominanteHex } from "./destaque.js";
