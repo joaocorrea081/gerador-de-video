@@ -1,0 +1,23 @@
+{
+  "name": "@gerador/escritor",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build": "tsc",
+    "test": "tsx --test \"src/**/*.test.ts\"",
+    "testar-real": "tsx testar-real.ts"
+  },
+  "dependencies": {
+    "@gerador/core": "workspace:*",
+    "better-sqlite3": "^13.0.3"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.12",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3"
+  }
+}

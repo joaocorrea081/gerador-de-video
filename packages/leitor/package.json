@@ -1,0 +1,27 @@
+{
+  "name": "@gerador/leitor",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build": "tsc",
+    "test": "node --import tsx --test \"src/**/*.test.ts\"",
+    "ler-real": "tsx src/ler-real.ts",
+    "testar-site": "tsx src/testar-site.ts"
+  },
+  "dependencies": {
+    "@gerador/core": "workspace:*",
+    "cheerio": "^1.2.0",
+    "playwright": "^1.49.1"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.12",
+    "@types/node": "^22.10.5",
+    "better-sqlite3": "^13.0.3",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3"
+  }
+}

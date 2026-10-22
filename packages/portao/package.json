@@ -1,0 +1,27 @@
+{
+  "name": "@gerador/portao",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build": "tsc",
+    "dev": "tsx src/bin.ts",
+    "test": "tsx --test src/*.test.ts"
+  },
+  "dependencies": {
+    "@gerador/core": "workspace:*",
+    "@gerador/escritor": "workspace:*",
+    "@gerador/leitor": "workspace:*",
+    "@gerador/montador": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.12",
+    "@types/node": "^22.10.5",
+    "better-sqlite3": "^13.0.3",
+    "typescript": "^5.7.3",
+    "tsx": "^4.19.2"
+  }
+}

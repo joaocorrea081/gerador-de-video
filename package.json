@@ -1,0 +1,27 @@
+{
+  "name": "gerador-de-video",
+  "private": true,
+  "version": "0.0.1",
+  "engines": {
+    "node": ">=22"
+  },
+  "packageManager": "pnpm@12.6.0",
+  "scripts": {
+    "typecheck": "pnpm -r run build && tsc --noEmit -p tsconfig.json && pnpm -r run typecheck",
+    "build": "pnpm -r run build",
+    "dev:portao": "pnpm --filter @gerador/portao run dev",
+    "cli": "tsx cli.ts",
+    "clean": "rm -rf packages/*/dist && find packages -name '*.tsbuildinfo' -delete",
+    "rodar": "tsx rodar.ts"
+  },
+  "dependencies": {
+    "@gerador/core": "workspace:*",
+    "@gerador/leitor": "workspace:*",
+    "@gerador/montador": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3",
+    "tsx": "^4.19.2",
+    "@types/node": "^22.10.5"
+  }
+}

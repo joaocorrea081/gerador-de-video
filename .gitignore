@@ -1,0 +1,19 @@
+node_modules/
+dist/
+dados/
+out/
+packages/montador/public/
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
+
+# Backups locais do banco e das fotos baixadas — nunca vão para o repositório
+dados-anterior-*/
+
+# Confidencial: dados do cliente (nome, histórico de gastos, valores do contrato)
+ESCOPO-CLIENTE.md
+
+# Instruções internas de trabalho — contém informação pessoal do João
+CLAUDE.md
