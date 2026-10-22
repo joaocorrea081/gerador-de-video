@@ -11,11 +11,13 @@ import {
   adiarPublicacao, contarUltimas24h, ErroPublicacao, gravarTokensRenovados, LIMITE_DIARIO_FIXO, lerAjusteNumero,
   lerAjusteTexto, lerCaracteristicas, lerSegredosConta, marcarPublicada, NOMES_REDE, obterConta, obterPublicacao,
   obterVideo, publicacoesVencidas, reivindicarPublicacao, registrarFalhaPublicacao, redigirSegredos,
-  tokenPrecisaRenovar, validarMidiaParaRede, gravarAjuste,
-  type CaracteristicasMidia, type ContaRede, type Publicacao, type Rede, type ResultadoValidacao,
+  tokenPrecisaRenovar, validarMidiaParaRede, gravarAjuste, exigirConferencia, gravarConferencia,
+  type CaracteristicasMidia, type ConferenciaPublicacao, type ContaRede, type Publicacao, type Rede, type ResultadoValidacao,
 } from "@gerador/core";
+import { abrirFonteReal, conferirAntesDePublicar, type FonteSite, type ResultadoConferencia } from "@gerador/leitor";
 import type Database from "better-sqlite3";
 import { localeDe, tOpcional } from "../idioma/index.js";
+import { redesDeFilaAtivas } from "../conectores/index.js";
 import { resolverLegenda } from "./legendas.js";
 import {
   ErroRede, FacebookReal, InstagramReal, ProvedorFalso, TikTokReal, type FetchLike, type ProvedorRede,
@@ -29,6 +31,8 @@ export interface DepsPublicador {
   lerMidia?: (caminho: string) => Promise<CaracteristicasMidia>;
   env?: Record<string, string | undefined>;
   fetch?: FetchLike;
+  /** Abre a fonte que relê o site na conferência de preço. Padrão: o navegador real do leitor. */
+  fonteConferencia?: () => Promise<{ fonte: FonteSite; fechar: () => Promise<void> }>;
 }
 
 const HORA_MS = 3_600_000;
@@ -74,12 +78,42 @@ export function fabricaPadrao(deps: Pick<DepsPublicador, "env" | "fetch">): Fabr
 }
 
 export type ResultadoExecucao =
-  | "publicada" | "ja_publicada" | "em_andamento" | "adiada_limite" | "tentara_de_novo" | "falhou";
+  | "publicada" | "ja_publicada" | "em_andamento" | "adiada_limite" | "tentara_de_novo" | "falhou"
+  /** A conferência de preço não liberou. NÃO é falha: a publicação continua marcada, esperando uma pessoa. */
+  | "barrada";
+
+export type ConferenciaBarrou = Extract<ResultadoConferencia, { liberada: false }>;
 
 export interface Execucao {
   resultado: ResultadoExecucao;
   publicacao: Publicacao;
   motivo?: string;
+  /** Só em "barrada": por que a conferência não liberou, já com as diferenças "de X para Y". */
+  conferencia?: ConferenciaBarrou;
+}
+
+/**
+ * Relê o site e compara com o dado que está no vídeo. Só roda com `conferencia.exigir` ligado: é a chave que a pessoa
+ * vê em Configurações. Devolve null quando liberou (ou quando a conferência está desligada).
+ */
+async function conferirOuBarrar(db: Database.Database, deps: DepsPublicador, id: number, agora: () => Date): Promise<ConferenciaBarrou | null> {
+  if (!exigirConferencia(db)) return null;
+  let aberta: Awaited<ReturnType<NonNullable<DepsPublicador["fonteConferencia"]>>> | null = null;
+  try {
+    aberta = await (deps.fonteConferencia ?? abrirFonteReal)();
+    const r = await conferirAntesDePublicar(db, aberta.fonte, id, { agora: agora() });
+    return r.liberada ? null : r;
+  } catch (e) {
+    // Erro inesperado na conferência: não deixa publicar e não vira falha. Fica gravado para a pessoa ver e decidir.
+    const c: ConferenciaPublicacao = {
+      estado: "nao_conferiu", em: agora().toISOString(), diferencas: [], codigo: "erro_interno", dadoLido: null,
+      motivo: `Não consegui conferir: ${redigirSegredos(db, e instanceof Error ? e.message : String(e))}`,
+    };
+    gravarConferencia(db, id, c);
+    return { liberada: false, estado: "nao_conferiu", conferencia: c };
+  } finally {
+    await aberta?.fechar().catch(() => undefined);
+  }
 }
 
 /**
@@ -124,6 +158,12 @@ export async function executarPublicacao(db: Database.Database, deps: DepsPublic
   if (p0.estado === "publicando") return { resultado: "em_andamento", publicacao: p0 };
   if (p0.estado !== "agendada") {
     throw new ErroPublicacao(`Publicação "${p0.estado}" não pode ser executada. Remarque primeiro.`, 409, "estado_invalido");
+  }
+  // Conferência de preço ANTES de reivindicar. Não liberada nunca vira falha permanente: a publicação segue 'agendada'.
+  const barrou = await conferirOuBarrar(db, deps, id, agora);
+  if (barrou) {
+    const texto = barrou.conferencia ? barrou.conferencia.diferencas.map((d) => d.descricao).join("; ") || barrou.conferencia.motivo : barrou.motivo;
+    return { resultado: "barrada", publicacao: obterPublicacao(db, id)!, ...(texto ? { motivo: texto } : {}), conferencia: barrou };
   }
   if (!reivindicarPublicacao(db, id, agora())) {
     return { resultado: "em_andamento", publicacao: obterPublicacao(db, id)! };
@@ -214,7 +254,10 @@ export interface ResumoProcessamento {
 export async function processarVencidas(db: Database.Database, deps: DepsPublicador): Promise<ResumoProcessamento> {
   const vencidas = publicacoesVencidas(db, deps.agora());
   const resultados: ResumoProcessamento["resultados"] = [];
+  const ligadas = redesDeFilaAtivas(db);
   for (const p of vencidas) {
+    // Rede desligada: a publicação continua marcada, esperando; não falha e não sai.
+    if (!ligadas.includes(p.rede)) continue;
     const r = await executarPublicacao(db, deps, p.id);
     resultados.push({ publicacaoId: p.id, rede: p.rede, resultado: r.resultado });
   }

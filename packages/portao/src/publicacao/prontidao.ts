@@ -1,11 +1,10 @@
 // Painel de prontidão: item por item, o que falta para cada rede publicar.
 // Existe para o cliente não achar que está pronto quando não está.
+// Monta-se a partir do registro de conectores: nenhuma rede é citada aqui.
 
-import {
-  contarUltimas24h, ESCOPOS_EXIGIDOS, LIMITE_DIARIO_FIXO, NOMES_REDE, obterConta, REDES, tokenPrecisaRenovar,
-  type Rede,
-} from "@gerador/core";
+import { contarUltimas24h, tokenPrecisaRenovar, type Rede } from "@gerador/core";
 import type Database from "better-sqlite3";
+import { conectoresAtivos, contaDoConector, textoDe } from "../conectores/index.js";
 import { t } from "../idioma/index.js";
 import { urlPublicaBase } from "./publicador.js";
 
@@ -18,8 +17,10 @@ export interface ItemProntidao {
 }
 
 export interface ProntidaoRede {
-  rede: Rede;
+  /** Id do conector (as três redes do núcleo e qualquer conector instalado). */
+  rede: string;
   nome: string;
+  exemplo: boolean;
   modo: "seco" | "real" | null;
   /** Pode publicar DE VERDADE (todos os itens ok e conta real). */
   prontaParaPublicarDeVerdade: boolean;
@@ -27,48 +28,52 @@ export interface ProntidaoRede {
   prontaParaModoSeco: boolean;
   itens: ItemProntidao[];
   uso24h: { usado: number; limite: number | null };
+  limiteLegenda: number | null;
+  /** Uma linha: o que ainda falta e em quanto tempo. */
+  resumo: string;
+  /** O texto completo do prazo real. */
+  prazo: string;
 }
 
 export function calcularProntidao(db: Database.Database, env: Record<string, string | undefined>, agora: Date): ProntidaoRede[] {
   const urlPublica = urlPublicaBase(db, env);
-  return REDES.map((rede) => {
-    const c = obterConta(db, rede);
+  return conectoresAtivos(db).map((c) => {
+    const conta = contaDoConector(db, c);
     const itens: ItemProntidao[] = [];
     const item = (id: string, descricao: string, ok: boolean, falta?: string) =>
       itens.push({ id, descricao, ok, ...(ok || !falta ? {} : { falta }) });
 
-    item("conta_conectada", t("pront.item.contaConectada"), c.conectada, t("pront.falta.conectar", { rede: NOMES_REDE[rede] }));
-    item("credencial_real", t("pront.item.credencialReal"), c.conectada && c.modo === "real", t("pront.falta.credencialReal"));
-    const expirado = c.tokenExpiraEm !== null && Date.parse(c.tokenExpiraEm) <= agora.getTime();
-    item("token_valido", t("pront.item.tokenValido"), c.conectada && !expirado,
-      c.conectada ? t("pront.falta.tokenExpirou") : t("pront.falta.semContaSemToken"));
-    if (c.conectada && !expirado && tokenPrecisaRenovar(c, agora)) {
-      item("token_longe_de_expirar", t("pront.item.tokenLonge"), false, t("pront.falta.tokenPerto"));
+    item("conta_conectada", t("pront.item.contaConectada"), conta.conectada, t("pront.falta.conectar", { rede: c.nome }));
+    if (c.modos.includes("real")) {
+      item("credencial_real", t("pront.item.credencialReal"), conta.conectada && conta.modo === "real", t("pront.falta.credencialReal"));
+      const expirado = conta.tokenExpiraEm !== null && Date.parse(conta.tokenExpiraEm) <= agora.getTime();
+      item("token_valido", t("pront.item.tokenValido"), conta.conectada && !expirado,
+        conta.conectada ? t("pront.falta.tokenExpirou") : t("pront.falta.semContaSemToken"));
+      if (conta.conectada && !expirado && c.fila && tokenPrecisaRenovar({ ...conta, rede: c.id as Rede }, agora)) {
+        item("token_longe_de_expirar", t("pront.item.tokenLonge"), false, t("pront.falta.tokenPerto"));
+      }
     }
-    const faltam = ESCOPOS_EXIGIDOS[rede].filter((e) => !c.escopos.includes(e));
-    item("escopos", t("pront.item.escopos"), c.conectada && faltam.length === 0,
-      c.conectada ? t("pront.falta.escopos", { lista: faltam.join(", ") }) : t("pront.falta.semContaSemPermissoes"));
+    if (c.escopos.length > 0) {
+      const faltam = c.escopos.filter((e) => !conta.escopos.includes(e));
+      item("escopos", t("pront.item.escopos"), conta.conectada && faltam.length === 0,
+        conta.conectada ? t("pront.falta.escopos", { lista: faltam.join(", ") }) : t("pront.falta.semContaSemPermissoes"));
+    }
+    item("aprovacao", textoDe(c.aprovacao.item), conta.aprovacaoPlataforma, textoDe(c.aprovacao.falta));
+    for (const a of c.ambiente ?? []) {
+      item("segredo_do_app", textoDe(a.descricao), a.variaveis.every((v) => Boolean(env[v])), textoDe(a.falta));
+    }
+    if (c.precisaUrlPublica) item("midia_url_publica", t("pront.item.urlPublica"), urlPublica !== null, t("pront.falta.urlPublica"));
 
-    if (rede === "tiktok") {
-      item("aprovacao", t("pront.item.tiktokAuditoria"), c.aprovacaoPlataforma, t("pront.falta.tiktokAuditoria"));
-      item("segredo_do_app", t("pront.item.tiktokSegredo"),
-        Boolean(env["TIKTOK_CLIENT_KEY"] && env["TIKTOK_CLIENT_SECRET"]), t("pront.falta.tiktokSegredo"));
-    }
-    if (rede === "facebook") {
-      item("aprovacao", t("pront.item.facebookReview"), c.aprovacaoPlataforma, t("pront.falta.facebookReview"));
-    }
-    if (rede === "instagram") {
-      item("aprovacao", t("pront.item.instagramApp"), c.aprovacaoPlataforma, t("pront.falta.instagramApp"));
-    }
-    item("midia_url_publica", t("pront.item.urlPublica"), urlPublica !== null, t("pront.falta.urlPublica"));
-
-    const uso = contarUltimas24h(db, rede, agora).total;
+    const usado = c.fila ? contarUltimas24h(db, c.id as Rede, agora).total : 0;
     const ok = itens.every((i) => i.ok);
     return {
-      rede, nome: NOMES_REDE[rede], modo: c.modo, itens,
-      prontaParaPublicarDeVerdade: ok && c.modo === "real",
-      prontaParaModoSeco: c.conectada,
-      uso24h: { usado: uso, limite: LIMITE_DIARIO_FIXO[rede] ?? null },
+      rede: c.id, nome: c.nome, exemplo: c.exemplo === true, modo: conta.modo, itens,
+      prontaParaPublicarDeVerdade: ok && conta.modo === "real",
+      prontaParaModoSeco: conta.conectada,
+      uso24h: { usado, limite: c.limites.diario ?? null },
+      limiteLegenda: c.limites.legenda ?? null,
+      resumo: textoDe(c.aprovacao.resumo),
+      prazo: textoDe(c.aprovacao.prazo),
     };
   });
 }

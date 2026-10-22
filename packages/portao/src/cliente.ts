@@ -416,6 +416,7 @@ const CORPO_JS = String.raw`
     if (r.resultado === "publicada") aviso("ok", T(r.simulado ? "js.publicadoSeco" : "js.publicado"));
     else if (r.resultado === "ja_publicada") aviso("ok", T("js.jaEstavaPublicado"));
     else if (r.resultado === "em_andamento") aviso("info", T("js.emAndamento"));
+    else if (r.resultado === "barrada") aviso("info", (r.titulo || T("js.barrada")) + (r.motivo ? " — " + r.motivo : ""));
     else if (r.resultado === "tentara_de_novo") aviso("info", T("js.tentaraDeNovo") + (r.motivo ? " " + T("js.motivoSufixo", { motivo: r.motivo }) : ""));
     else aviso("ok", T("js.pronto"));
   }
@@ -639,17 +640,21 @@ const CORPO_JS = String.raw`
     if (acao === "descartar") { var fd = el.closest("form"); fd.reset(); setTimeout(function () { sujo(fd); }, 0); return; }
 
     // ----- chaves (switch): o estado é a posição da chave
-    if (acao === "agendamento-alternar" || acao === "site-ativo" || acao === "plano-alternar") {
+    if (acao === "agendamento-alternar" || acao === "site-ativo" || acao === "plano-alternar" || acao === "conector-ativo" || acao === "conferencia-exigir") {
       var novo = el.getAttribute("aria-checked") !== "true";
       el.setAttribute("aria-checked", novo ? "true" : "false"); el.disabled = true;
       var pedido = acao === "agendamento-alternar"
         ? chamar("POST", "/api/agendamento", { ligado: novo })
-        : acao === "plano-alternar"
+        : acao === "conferencia-exigir"
+          ? chamar("POST", "/api/conferencia", { exigir: novo })
+          : acao === "conector-ativo"
+          ? chamar("POST", "/api/conectores/" + encodeURIComponent(el.getAttribute("data-conector")) + "/ativo", { ativo: novo })
+          : acao === "plano-alternar"
           ? chamar("POST", "/api/plano/ativo", { ativo: novo })
           : chamar("POST", "/api/sites/" + encodeURIComponent(el.getAttribute("data-site")) + "/ativo", { ativo: novo });
       pedido.then(function () {
         el.disabled = false;
-        aviso("ok", T(acao === "plano-alternar" ? (novo ? "js.grade.ligada" : "js.grade.desligada") : acao === "site-ativo" ? (novo ? "js.sites.ligado" : "js.sites.desligado") : (novo ? "js.agendamentoLigado" : "js.agendamentoDesligado")));
+        aviso("ok", T(acao === "conferencia-exigir" ? (novo ? "js.conferenciaLigada" : "js.conferenciaDesligada") : acao === "conector-ativo" ? (novo ? "js.redeLigada" : "js.redeDesligada") : acao === "plano-alternar" ? (novo ? "js.grade.ligada" : "js.grade.desligada") : acao === "site-ativo" ? (novo ? "js.sites.ligado" : "js.sites.desligado") : (novo ? "js.agendamentoLigado" : "js.agendamentoDesligado")));
         return atualizar(true);
       }, function (er) {
         el.setAttribute("aria-checked", novo ? "false" : "true"); el.disabled = false;
@@ -817,6 +822,13 @@ const CORPO_JS = String.raw`
       executar(el, T("js.publicando"), function () { return chamar("POST", "/api/calendario/" + pa + "/publicar-agora"); }, avisoDaExecucao);
       return;
     }
+    if (acao === "conferir-de-novo") {
+      var pubCf = el.getAttribute("data-pub"); var selCf = document.getElementById("conf-espera-" + pubCf);
+      var minCf = selCf ? Number(selCf.value) : 30;
+      executar(el, T("js.conferindo"), function () { return chamar("POST", "/api/calendario/" + pubCf + "/conferir-de-novo", { esperaMin: minCf }); },
+        function () { aviso("ok", minCf > 0 ? T("js.conferirDeNovo", { n: minCf }) : T("js.conferirAgora")); });
+      return;
+    }
     if (acao === "tentar-de-novo") {
       var corpoT = { rede: el.getAttribute("data-rede") };
       if (corpoT.rede === "tiktok") corpoT.visibilidade = el.getAttribute("data-visibilidade");
@@ -963,6 +975,13 @@ const CORPO_JS = String.raw`
         function () { aviso("ok", T("js.grade.salva")); atualizarPrevisao(null); });
       return;
     }
+    if (f.id === "form-conferencia") {
+      var minConf = f.elements["validadeMin"].value.trim();
+      if (!/^\d+$/.test(minConf)) { aviso("erro", T("js.confValidadeInvalida")); return; }
+      executar(botao, T("js.salvando"), function () { return chamar("POST", "/api/conferencia", { validadeMin: Number(minConf) }); },
+        function () { aviso("ok", T("js.conferenciaSalva")); });
+      return;
+    }
     if (f.id === "form-estoque") {
       var nLeit = Number(f.elements["leituras"].value);
       executar(botao, T("js.salvando"), function () { return chamar("POST", "/api/estoque/leituras-para-saida", { leituras: nLeit }); },
@@ -1010,18 +1029,20 @@ const CORPO_JS = String.raw`
       return;
     }
     if (f.classList.contains("form-conta")) {
-      var redeC = f.getAttribute("data-rede"); var modo = f.elements["modo"].value; var dadosC;
-      if (modo === "seco") dadosC = { modo: "seco" };
-      else {
-        if (!f.elements["expiraEm"].value) { aviso("erro", T("js.expiraObrig")); return; }
-        dadosC = {
-          modo: "real", accessToken: f.elements["accessToken"].value, contaId: f.elements["contaId"].value.trim(),
-          escopos: f.elements["escopos"].value.split(",").map(function (x) { return x.trim(); }).filter(Boolean),
-          expiraEm: new Date(f.elements["expiraEm"].value + ":00-03:00").toISOString()
-        };
-        var nomeC = f.elements["contaNome"].value.trim(); if (nomeC) dadosC.contaNome = nomeC;
-        if (f.elements["refreshToken"].value) dadosC.refreshToken = f.elements["refreshToken"].value;
-        if (f.elements["refreshExpiraEm"].value) dadosC.refreshExpiraEm = new Date(f.elements["refreshExpiraEm"].value + ":00-03:00").toISOString();
+      var redeC = f.getAttribute("data-rede"); var modo = f.elements["modo"].value; var dadosC = { modo: modo };
+      if (modo !== "seco") {
+        var faltouC = null;
+        f.querySelectorAll("[data-campo-cred]").forEach(function (inp) {
+          var tipoC = inp.getAttribute("data-campo-cred"); var vC = inp.value.trim();
+          if (!vC) { if (inp.hasAttribute("data-obrig") && !faltouC) faltouC = inp; return; }
+          if (tipoC === "data_hora") dadosC[inp.name] = new Date(inp.value + ":00-03:00").toISOString();
+          else if (tipoC === "lista") dadosC[inp.name] = vC.split(",").map(function (x) { return x.trim(); }).filter(Boolean);
+          else dadosC[inp.name] = tipoC === "segredo" ? inp.value : vC;
+        });
+        if (faltouC) {
+          var rotC = f.querySelector('label[for="' + faltouC.id + '"]');
+          aviso("erro", T("js.campoObrigatorio", { campo: rotC ? rotC.textContent : faltouC.name })); faltouC.focus(); return;
+        }
       }
       executar(botao, T("js.conectando"), function () { return chamar("POST", "/api/contas/" + redeC + "/conectar", dadosC); },
         function () { f.reset(); aviso("ok", T(modo === "seco" ? "js.conectadoSeco" : "js.contaConectada")); });

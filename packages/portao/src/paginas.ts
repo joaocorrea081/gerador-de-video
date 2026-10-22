@@ -751,6 +751,7 @@ export function paginaAjustes(
   ia: DadosIA,
   contadores: Contadores = SEM_CONTADORES,
   leituras = 3,
+  conferencia = { exigir: false, validadeMin: 30 },
 ): string {
   const idioma = ajustes.find((a) => a.chave === "idioma_anuncio")?.valor ?? "pt-BR";
   const lista: { valor: string; texto: string }[] = IDIOMAS_ANUNCIO.map((v) => ({ valor: v, texto: t(`ajustes.idiomaAnuncio.${v}` as Chave) }));
@@ -801,6 +802,20 @@ export function paginaAjustes(
       campo: `<input class="campo" id="aj-url" name="urlPublica" type="url" placeholder="https://videos.exemplo.com.br" value="${escaparHtml(urlPublica)}" data-inicial="${escaparHtml(urlPublica)}" />`,
     }),
   ], { extra: peDoGrupo() })}
+  </form>
+
+  <form id="form-conferencia" data-config-form>
+  ${grupo(e("ajustes.conf.titulo"), [
+    linha({
+      rotulo: t("ajustes.conf.exigir"), ajuda: t("ajustes.conf.exigirAjuda"),
+      cab: chave({ ligado: conferencia.exigir, rotulo: t("ajustes.conf.exigir"), attrs: 'data-acao="conferencia-exigir"' }),
+      campo: "",
+    }),
+    linha({
+      rotulo: t("ajustes.conf.validade"), para: "aj-conf-validade", ajuda: t("ajustes.conf.validadeAjuda"), desfazer: true,
+      campo: `<input class="campo" id="aj-conf-validade" name="validadeMin" type="number" min="0" max="1440" step="1" value="${conferencia.validadeMin}" data-inicial="${conferencia.validadeMin}" />`,
+    }),
+  ], { id: "ajustes-conferencia", extra: peDoGrupo() })}
   </form>
 
   <form id="form-estoque" data-config-form>

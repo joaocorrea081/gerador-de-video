@@ -10,6 +10,7 @@ import {
 import { sugerirVariacoesDoVideo } from "@gerador/montador";
 import type Database from "better-sqlite3";
 import type { ContextoTela } from "./contexto-tela.js";
+import { redesDeFilaAtivas } from "./conectores/index.js";
 import { medir } from "./dados-telas.js";
 import { traduzirErro } from "./erros.js";
 import { lerCorpoJson, responderJson } from "./http.js";
@@ -30,7 +31,7 @@ export function alertasPendentes(db: Database.Database): ContextoTela["alertas"]
 }
 
 export function lerContextoTela(db: Database.Database): ContextoTela {
-  return { pausa: obterPausa(db), alertas: alertasPendentes(db) };
+  return { pausa: obterPausa(db), alertas: alertasPendentes(db), redesAtivas: redesDeFilaAtivas(db) };
 }
 
 // ------------------------------------------------------------------ job travado
@@ -91,13 +92,16 @@ function depsAgendador(deps: Dependencias): DepsAgendador {
   return deps.lerMidia ? { lerMidia: deps.lerMidia } : {};
 }
 
-function opcoesDeEncaixe(corpo: Record<string, unknown>): OpcoesEncaixe {
+function opcoesDeEncaixe(db: Database.Database, corpo: Record<string, unknown>): OpcoesEncaixe {
   const v = corpo["visibilidadeTiktok"];
-  return v === "publica" || v === "privada" ? { visibilidadeTiktok: v } : {};
+  // Só as redes ligadas entram na previsão e no agendamento.
+  const redes = redesDeFilaAtivas(db);
+  return v === "publica" || v === "privada" ? { visibilidadeTiktok: v, redes } : { redes };
 }
 
 /** A previsão, já em HTML, para um plano (o salvo ou o que a pessoa está montando). */
-export async function previsaoEmHtml(db: Database.Database, deps: Dependencias, plano: Plano, opcoes: OpcoesEncaixe = {}): Promise<{ html: string; total: number }> {
+export async function previsaoEmHtml(db: Database.Database, deps: Dependencias, plano: Plano, opcoesPedidas: OpcoesEncaixe = {}): Promise<{ html: string; total: number }> {
+  const opcoes: OpcoesEncaixe = { ...opcoesPedidas, redes: opcoesPedidas.redes ?? redesDeFilaAtivas(db) };
   const ids = aprovadosParaGrade(db);
   // Prever só faz sentido com blocos; com a grade desligada a previsão mostra o que aconteceria se ligasse.
   const simulado: Plano = { ativo: plano.grades.length > 0, grades: plano.grades };
@@ -172,14 +176,14 @@ export async function tratarRotaControle(
       const corpo = (await lerCorpoJson(req)) as Record<string, unknown>;
       const grades = Array.isArray(corpo["grades"]) ? corpo["grades"] : [];
       const montado = grades.length === 0 ? { ativo: false, grades: [] } : normalizarPlano({ ativo: true, grades });
-      const p = await previsaoEmHtml(db, deps, { ...montado, ativo: lerPlano(db).ativo }, opcoesDeEncaixe(corpo));
+      const p = await previsaoEmHtml(db, deps, { ...montado, ativo: lerPlano(db).ativo }, opcoesDeEncaixe(db, corpo));
       responderJson(res, 200, { html: p.html, total: p.total });
       return true;
     }
     if (caminho === "/api/plano/confirmar" && metodo === "POST") {
       const corpo = (await lerCorpoJson(req)) as Record<string, unknown>;
       const plano = salvarPlano(db, { ativo: true, grades: corpo["grades"] });
-      const r = await encaixarAprovados(db, aprovadosParaGrade(db), agora, opcoesDeEncaixe(corpo), depsAgendador(deps), plano);
+      const r = await encaixarAprovados(db, aprovadosParaGrade(db), agora, opcoesDeEncaixe(db, corpo), depsAgendador(deps), plano);
       responderJson(res, 200, { plano, agendadas: r.agendadas.length, erros: r.erros.length });
       return true;
     }
@@ -189,7 +193,7 @@ export async function tratarRotaControle(
       const id = Number(mAprovar[1]);
       const corpo = (await lerCorpoJson(req)) as Record<string, unknown>;
       const modo = (corpo["modo"] ?? "aprovar_e_decidir_depois") as ModoAprovar;
-      const r = await aprovarComSugestao(db, id, modo, agora, opcoesDeEncaixe(corpo), depsAgendador(deps));
+      const r = await aprovarComSugestao(db, id, modo, agora, opcoesDeEncaixe(db, corpo), depsAgendador(deps));
       const frases: Record<string, string> = {};
       if (r.video.caminhoMp4) {
         for (const s of r.sugestoes) {

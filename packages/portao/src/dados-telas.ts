@@ -1,8 +1,9 @@
 // Dados que as telas precisam e que não são só "ler do banco": contadores da barra lateral e o bloco por rede.
 import { statSync } from "node:fs";
 import {
-  lerCaracteristicas, listarContas, listarLegendas, obterConta, REDES, type CaracteristicasMidia, type Rede, type Video,
+  lerCaracteristicas, listarContas, listarLegendas, obterConta, type CaracteristicasMidia, type Rede, type Video,
 } from "@gerador/core";
+import { redesDeFilaAtivas } from "./conectores/index.js";
 import type Database from "better-sqlite3";
 import type { Contadores } from "./paginas.js";
 import type { DadosRedes, ValidacaoRede } from "./paginas-redes.js";
@@ -50,15 +51,16 @@ const ESTADOS_COM_REDES = new Set(["aguardando_aprovacao", "aprovado", "publicad
 
 export async function dadosRedes(db: Database.Database, v: Pick<Video, "id" | "estado" | "caminhoMp4">, deps: Dependencias, ia: boolean): Promise<DadosRedes | null> {
   if (!v.caminhoMp4 || !ESTADOS_COM_REDES.has(v.estado)) return null;
+  const ativas = redesDeFilaAtivas(db);
   const salvas = listarLegendas(db, v.id);
   const legendas = Object.fromEntries(
-    REDES.map((r) => {
+    ativas.map((r) => {
       const s = salvas.find((l) => l.rede === r);
       return [r, s ? { texto: s.texto, origem: s.manual ? "manual" : "ia" } : { texto: resolverLegenda(db, v.id, r), origem: "ficha" }];
     }),
   ) as DadosRedes["legendas"];
   const contas = Object.fromEntries(
-    REDES.map((r) => {
+    ativas.map((r) => {
       const c = obterConta(db, r);
       return [r, c.conectada ? c.contaNome : null];
     }),
@@ -67,7 +69,7 @@ export async function dadosRedes(db: Database.Database, v: Pick<Video, "id" | "e
   let validacaoErro: string | null = null;
   try {
     const c = await medir(deps, v.caminhoMp4);
-    validacao = REDES.map((r) => {
+    validacao = ativas.map((r) => {
       const x = validarPublicacaoDeMidia(r, c, obterConta(db, r), "publica");
       return { rede: r, ok: x.ok, bloqueios: x.bloqueios, avisos: x.avisos };
     });

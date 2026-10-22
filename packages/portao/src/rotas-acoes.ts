@@ -53,6 +53,8 @@ export interface Dependencias {
   lerMidia?: (caminho: string) => Promise<import("@gerador/core").CaracteristicasMidia>;
   envPublicacao?: Record<string, string | undefined>;
   fetchRede?: import("./publicacao/provedores.js").FetchLike;
+  /** Abre a fonte que relê o site na conferência de preço antes de publicar. Padrão: o navegador real do leitor. */
+  fonteConferencia?: import("./publicacao/publicador.js").DepsPublicador["fonteConferencia"];
   /** Ambiente de onde saem as chaves de IA (só para saber se existem). Padrão: process.env. */
   envIA?: Record<string, string | undefined>;
   /** Gera a miniatura de um vídeo. Padrão: ffmpeg. */

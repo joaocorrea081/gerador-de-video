@@ -347,6 +347,12 @@ textarea.campo { resize: vertical; min-height: 96px; }
 .horarios .valor { font-weight: 600; }
 .motivos { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; }
 .motivos .caixa { padding: 12px; border-radius: var(--dsw-radius-md); background: var(--dsw-alias-bg-module-platform); text-align: center; }
+.conf-bloco { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.conf-bloco .acoes { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.conf-espera { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.conf-espera .campo { width: auto; min-width: 96px; }
+.pront-resumo { padding: 10px 12px; border-radius: var(--dsw-radius-md); background: var(--dsw-alias-bg-module-platform); font-size: 13px; line-height: 20px; margin: 8px 0; }
+.conector-desligado .linha { opacity: 0.85; }
 .lista-simples { display: flex; flex-direction: column; gap: 4px; margin: 0; padding-left: 18px; }
 
 /* ---------- calendário ---------- */
@@ -432,7 +438,7 @@ textarea.campo { resize: vertical; min-height: 96px; }
 .motivos-validacao { color: var(--dsw-alias-state-error-primary); }
 
 /* ---------- publicações por rede, lado a lado ---------- */
-.redes-lado { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.redes-lado { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; }
 .rede-cel { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding: 12px; border-radius: var(--dsw-radius-md); background: var(--dsw-alias-bg-module-platform); min-width: 0; }
 .rede-cel h4 { margin: 0; font-size: 13px; line-height: 20px; }
 .rede-cel .leg { overflow-wrap: anywhere; }

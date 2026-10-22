@@ -22,7 +22,7 @@ ou no terminal. Nada vira ✅ por relatório de subagente.
 | A8 | Fila: medida de texto legível, não linha atravessando a tela | ✅ |
 | A9 | Ajustes vira Configurações | ✅ |
 | A10 | Tema vira ícone; escolha completa em Configurações | ✅ |
-| A11 | Prévia das redes parecendo o feed de verdade | 🔧 |
+| A11 | Prévia das redes parecendo o feed de verdade | ✅ |
 
 ## B. Painel — idioma e texto
 
@@ -72,7 +72,7 @@ ou no terminal. Nada vira ✅ por relatório de subagente.
 | E5 | Prontidão: o que falta em cada rede | ✅ motor |
 | E6 | Grade recorrente (dias e horários fixos) | ✅ |
 | E7 | Aprovar emenda no agendar | ✅ |
-| E8 | Redes como conector que se ativa e conecta | ⬜ |
+| E8 | Redes como conector que se ativa e conecta | ✅ |
 
 ## F. Leitura do site
 
@@ -97,7 +97,7 @@ ou no terminal. Nada vira ✅ por relatório de subagente.
 | # | | |
 |---|---|---|
 | H1 | Carro vendido sai do ar | ✅ |
-| H2 | Reler o preço imediatamente antes de publicar | ✅ motor · ⬜ ligar no publicador |
+| H2 | Reler o preço imediatamente antes de publicar | ✅ |
 | H3 | Parar tudo | ✅ |
 | H4 | GitHub público, com commit a cada etapa | ✅ |
 | H5 | Nada de chave, dado do cliente ou informação pessoal no repositório | ✅ |
@@ -107,3 +107,58 @@ ou no terminal. Nada vira ✅ por relatório de subagente.
 ## Regra para mim
 
 Nada vira ✅ porque um subagente disse que fez. Eu abro, clico e confiro.
+
+---
+
+# Limites declarados — o que NÃO está pronto, e por quê
+
+Os 57 itens acima estão fechados e conferidos por mim no navegador ou no
+terminal. Estes quatro pontos continuam abertos, e nenhum deles se resolve
+com código.
+
+## 1. Rede nova ainda não publica
+
+O registro de conectores funciona: escrevi um conector de exemplo e ele
+apareceu em Contas, Prontidão e no liga/desliga **sem alterar nenhum arquivo
+existente** (602 arquivos idênticos, só o novo entrou).
+
+Mas o núcleo ainda tem o tipo `Rede` fechado em três valores e o banco tem um
+CHECK com os mesmos três. Então rede nova aparece nas telas e **não entra na
+fila de publicação**.
+
+Decisão minha, e digo o porquê: abrir isso significa tirar o CHECK do banco e
+a união de tipos, perdendo as duas travas que impedem gravar rede inválida.
+Em troca de uma quarta rede que ninguém pediu. Não vale.
+Quando aparecer uma quarta rede de verdade, são três arquivos: `core/midia.ts`,
+`core/publicacao.ts` e uma migração.
+
+## 2. Romeno e russo não foram revisados por quem fala
+
+As telas estão nos quatro idiomas, mas as frases técnicas (auditoria do TikTok,
+regras de mídia, prazos das plataformas) ficaram em inglês de propósito.
+
+Regra que eu impus: **melhor faltar tradução do que ter tradução errada no
+painel do cliente**. O que foi traduzido nunca passou por um nativo.
+Isso é revisão do Iurie ou de alguém de lá, antes de mostrar à equipe dele.
+
+## 3. Publicar de verdade depende do cliente, não de nós
+
+O motor publica, com idempotência, espera crescente, limite diário e validação
+por rede. Tudo provado em modo seco.
+
+O que falta não é código:
+- **Instagram** entra rápido, se o app for do cliente e publicar só nas contas dele.
+- **Facebook** exige App Review. Cerca de 20 dias, e cada reprovação reinicia.
+- **TikTok** sem auditoria **não publica em público. Nenhuma.** De 2 a 6 semanas.
+
+E os apps têm que ser do cliente. Se a conta levar punição por conteúdo de IA,
+morre a conta de quem é dono do app.
+
+## 4. O site do cliente
+
+Todo o sistema foi provado contra uma revenda real (rota66bh.com.br, plataforma
+AutoCerto). O leitor tem adaptador genérico de JSON-LD, detecção de bloqueio e
+plano B pelo navegador da pessoa.
+
+Falta o link do site do Iurie. Com ele, ou funciona direto pelo JSON-LD, ou é
+escrever um adaptador — trabalho pequeno **depois** de ver a página.

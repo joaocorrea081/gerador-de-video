@@ -5,13 +5,16 @@ import {
   agendarPublicacao, conectarConta, definirAprovacaoPlataforma, desconectarConta, desmarcarPublicacao, ErroPortao,
   ErroPublicacao, exigirRede, gravarLegenda, gravarTokensRenovados, lerCaracteristicas, listarCalendario, listarContas,
   listarLegendas, listarPublicacoesDoVideo, obterConta, obterPublicacao, obterPublicacaoDoPar, obterVideo,
-  recuperarPublicacoesOrfas, redigirSegredos, remarcarPublicacao, REDES, tokenPrecisaRenovar, type Publicacao, type Rede,
+  liberarParaNovaConferencia, recuperarPublicacoesOrfas, redigirSegredos, remarcarPublicacao, REDES, tokenPrecisaRenovar, type Publicacao, type Rede,
 } from "@gerador/core";
 import { ErroConfiguracaoProvedor, ErroProvedor } from "@gerador/escritor";
 import { extrairIdDoCaminho, lerCorpoJson, responderJson } from "./http.js";
 import { traduzirErro } from "./erros.js";
-import { t } from "./idioma/index.js";
+import { t, type Chave } from "./idioma/index.js";
 import type { Dependencias } from "./rotas-acoes.js";
+import {
+  acharConector, aprovacaoExterno, conectarExterno, desconectarExterno, redeDeFilaAtiva, redesDeFilaAtivas,
+} from "./conectores/index.js";
 import { calcularProntidao } from "./publicacao/prontidao.js";
 import { ErroLegenda, gerarLegendas } from "./publicacao/legendas.js";
 import {
@@ -25,6 +28,7 @@ function depsPublicador(deps: Dependencias): DepsPublicador {
     ...(deps.lerMidia ? { lerMidia: deps.lerMidia } : {}),
     ...(deps.envPublicacao ? { env: deps.envPublicacao } : {}),
     ...(deps.fetchRede ? { fetch: deps.fetchRede } : {}),
+    ...(deps.fonteConferencia ? { fonteConferencia: deps.fonteConferencia } : {}),
   };
 }
 
@@ -52,7 +56,7 @@ const reVideo = /^\/api\/videos\/(\d+)\/(validacao|legendas|publicacoes|publicar
 const reLegendaRede = /^\/api\/videos\/(\d+)\/legendas\/(\w+)$/;
 const reLegendaGerar = /^\/api\/videos\/(\d+)\/legendas\/gerar$/;
 const reConta = /^\/api\/contas\/(\w+)\/(conectar|desconectar|renovar|aprovacao)$/;
-const reCal = /^\/api\/calendario\/(\d+)\/(desmarcar|remarcar|publicar-agora)$/;
+const reCal = /^\/api\/calendario\/(\d+)\/(desmarcar|remarcar|publicar-agora|conferir-de-novo)$/;
 
 function statusDaExecucao(e: Execucao): number {
   switch (e.resultado) {
@@ -60,6 +64,7 @@ function statusDaExecucao(e: Execucao): number {
     case "em_andamento": case "tentara_de_novo": return 202;
     case "adiada_limite": return 429;
     case "falhou": return 422;
+    case "barrada": return 200;
   }
 }
 
@@ -69,6 +74,7 @@ function corpoDaExecucao(e: Execucao) {
     simulado: e.publicacao.simulado,
     ...(e.motivo ? { motivo: e.motivo } : {}),
     ...(e.resultado === "adiada_limite" ? { codigo: "limite_diario" } : {}),
+    ...(e.resultado === "barrada" ? { codigo: "conferencia", estado: e.conferencia?.estado, titulo: t(`conf.titulo.${e.conferencia?.estado ?? "nao_conferiu"}` as Chave) } : {}),
     publicacao: e.publicacao,
   };
 }
@@ -94,6 +100,20 @@ export async function tratarRotaPublicacao(
     // ---- contas
     if (caminho === "/api/contas" && metodo === "GET") {
       responderJson(res, 200, { contas: listarContas(db) });
+      return true;
+    }
+    if (mConta && metodo === "POST" && !(REDES as readonly string[]).includes(mConta[1]!)) {
+      // Conector que o núcleo ainda não conhece: a conta (só modo seco) fica nos ajustes.
+      const id = mConta[1]!;
+      const acao = mConta[2];
+      if (!acharConector(id)) throw new ErroPublicacao(t("erro.conectorDesconhecido"), 404, "conector_inexistente");
+      if (acao === "conectar") responderJson(res, 200, { conta: conectarExterno(db, id, (await lerCorpoJson(req)) as Record<string, unknown>, agora) });
+      else if (acao === "desconectar") responderJson(res, 200, { conta: desconectarExterno(db, id) });
+      else if (acao === "aprovacao") {
+        const corpo = (await lerCorpoJson(req)) as Record<string, unknown>;
+        if (typeof corpo["aprovada"] !== "boolean") throw new ErroPublicacao(t("erro.aprovadaInvalida"), 400, "aprovada_invalida");
+        responderJson(res, 200, { conta: aprovacaoExterno(db, id, corpo["aprovada"]) });
+      } else throw new ErroPublicacao(t("core.naoConectada", { rede: id }), 409, "sem_token");
       return true;
     }
     if (mConta && metodo === "POST") {
@@ -140,7 +160,7 @@ export async function tratarRotaPublicacao(
       const vis = url.searchParams.get("visibilidade") === "privada" ? "privada" : "publica";
       responderJson(res, 200, {
         caracteristicas: c,
-        redes: REDES.map((r) => validarPublicacaoDeMidia(r, c, obterConta(db, r), vis)),
+        redes: redesDeFilaAtivas(db).map((r) => validarPublicacaoDeMidia(r, c, obterConta(db, r), vis)),
       });
       return true;
     }
@@ -188,6 +208,9 @@ export async function tratarRotaPublicacao(
       const videoId = mp ? Number(mp[1]) : Number(corpo["videoId"]);
       if (!Number.isInteger(videoId)) throw new ErroPublicacao(t("erro.campoVideoId"), 400, "video_ausente");
       const rede = exigirRede(corpo["rede"]);
+      if (!redeDeFilaAtiva(db, rede)) {
+        throw new ErroPublicacao(t("erro.redeDesligada", { rede: acharConector(rede)?.nome ?? rede }), 409, "rede_desligada");
+      }
 
       if (agoraAgenda) {
         const ja = obterPublicacaoDoPar(db, videoId, rede);
@@ -245,7 +268,19 @@ export async function tratarRotaPublicacao(
     if (mCal && metodo === "POST") {
       const id = Number(mCal[1]);
       if (mCal[2] === "desmarcar") responderJson(res, 200, { publicacao: desmarcarPublicacao(db, id, agora) });
-      else if (mCal[2] === "remarcar") {
+      else if (mCal[2] === "conferir-de-novo") {
+        const corpo = (await lerCorpoJson(req)) as Record<string, unknown>;
+        const espera = corpo["esperaMin"];
+        if (typeof espera !== "number" || !Number.isFinite(espera) || espera < 0 || espera > 24 * 60) {
+          throw new ErroPublicacao(t("erro.esperaConferencia"), 400, "espera_invalida");
+        }
+        const alvo = obterPublicacao(db, id);
+        if (!alvo) throw new ErroPublicacao(t("erro.publicacaoNaoEncontrada"), 404, "publicacao_inexistente");
+        if (alvo.estado !== "agendada") throw new ErroPublicacao(t("erro.conferenciaNada"), 409, "conferencia_inexistente");
+        // Limpa o resultado e adia por `espera` minutos. Não gasta tentativa e não vira falha.
+        liberarParaNovaConferencia(db, id, espera, agora);
+        responderJson(res, 200, { publicacao: obterPublicacao(db, id) });
+      } else if (mCal[2] === "remarcar") {
         const corpo = (await lerCorpoJson(req)) as Record<string, unknown>;
         responderJson(res, 200, { publicacao: remarcarPublicacao(db, id, corpo["quando"], agora) });
       } else {

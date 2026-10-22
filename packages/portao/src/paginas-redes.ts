@@ -1,6 +1,6 @@
 // Bloco "por rede" do cartão de vídeo: validação (selo passa/não passa), legenda editável e prévia do feed.
 // Só HTML. Os números vêm do que o servidor mediu no MP4 (core/midia.ts), nunca do modelo de linguagem.
-import { LIMITE_LEGENDA, NOMES_REDE, REDES, type Rede } from "@gerador/core";
+import { LIMITE_LEGENDA, NOMES_REDE, type Rede } from "@gerador/core";
 import { escaparHtml } from "./html.js";
 import { t, tp, type Chave } from "./idioma/index.js";
 
@@ -167,7 +167,7 @@ export function partesRedes(id: number, caminhoMp4: string | null, d: DadosRedes
         <button type="button" class="btn ghost" data-acao="fechar">${e("acao.fechar")}</button>
       </div>
       <p class="leg">${e("redes.iaAviso")}</p>
-      <div class="redes-grade">${REDES.map((r) => colunaRede(id, temMp4, r, d)).join("")}</div>
+      <div class="redes-grade">${(Object.keys(d.legendas) as Rede[]).map((r) => colunaRede(id, temMp4, r, d)).join("")}</div>
       <p class="leg">${e("redes.previaAviso")}</p>
     </div>`;
   return { resumo, botaoLegenda, painel };

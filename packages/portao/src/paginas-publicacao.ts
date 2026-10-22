@@ -2,11 +2,8 @@
 // Hora em Brasília na tela (tempo.ts); o servidor continua em UTC. Segredo nunca entra aqui:
 // as funções recebem só a visão pública da conta (ContaRede), que não tem token.
 import {
-  ESCOPOS_EXIGIDOS,
-  LIMITE_LEGENDA,
   MAXIMO_TENTATIVAS_PUBLICACAO,
   NOMES_REDE,
-  REDES,
   type ContaRede,
   type EstadoPublicacao,
   type Publicacao,
@@ -15,12 +12,11 @@ import {
 } from "@gerador/core";
 import { casca, e, icone, nomeDaAba, SEM_CONTADORES, type Contadores } from "./paginas.js";
 import { escaparHtml } from "./html.js";
-import { chave, grupo, linha } from "./linhas.js";
+import { chave } from "./linhas.js";
 import { formatarPreco } from "./dinheiro.js";
 import { contextoTela } from "./contexto-tela.js";
 import { blocoAlertasEstoque } from "./pecas-controle.js";
 import { localeDe, t, tp, type Chave } from "./idioma/index.js";
-import type { ProntidaoRede } from "./publicacao/prontidao.js";
 import {
   diaCurto, diaDaSemana, diaMes, formatarBrasilia, horaBrasilia, mesPorExtenso, somarDias, ymdDeIso, ymdValido,
 } from "./tempo.js";
@@ -40,6 +36,42 @@ function rotuloEstadoPub(estado: EstadoPublicacao): string {
 
 function seloPub(estado: EstadoPublicacao): string {
   return `<span class="selo ${TOM_ESTADO_PUB[estado]}">${escaparHtml(rotuloEstadoPub(estado))}</span>`;
+}
+
+// ----------------------------------------------------------- conferência de preço
+
+const ESPERAS_CONFERENCIA = [0, 15, 30, 60, 120] as const;
+
+/** Por que a conferência segurou esta publicação, com as diferenças "de X para Y" e as duas saídas: desmarcar ou tentar de novo. */
+export function blocoConferencia(p: Publicacao, opcoes: { comDesmarcar?: boolean } = {}): string {
+  const comDesmarcar = opcoes.comDesmarcar !== false;
+  const c = p.conferencia;
+  if (p.estado !== "agendada" || !c || c.estado === "ok") return "";
+  const mudou = c.estado === "mudou";
+  const semReferencia = c.codigo === "sem_referencia";
+  const motivo = semReferencia
+    ? t("conf.semReferencia")
+    : c.codigo === "tempo_esgotado"
+      ? t("conf.tempoEsgotado")
+      : (c.motivo ?? "");
+  const corpo = mudou
+    ? `<ul class="lista-simples" data-diferencas>${c.diferencas.map((d) => `<li>${escaparHtml(d.descricao)}</li>`).join("")}</ul><p class="leg">${e("conf.mudouTexto")}</p>`
+    : `<p data-motivo>${escaparHtml(motivo)}</p>${semReferencia ? "" : `<p class="leg">${e("conf.naoConferiuTexto")}</p>`}`;
+  const espera = semReferencia
+    ? `<a class="btn outline pequeno" data-nav href="/fila">${e("conf.refazer")}</a>`
+    : `<span class="conf-espera"><label for="conf-espera-${p.id}">${e("conf.tentarEm")}</label>
+        <select class="campo" id="conf-espera-${p.id}">${ESPERAS_CONFERENCIA.map((n) => `<option value="${n}"${n === 30 ? " selected" : ""}>${n === 0 ? e("conf.agora") : e("conf.minutos", { n })}</option>`).join("")}</select>
+        <button type="button" class="btn primary pequeno" data-acao="conferir-de-novo" data-pub="${p.id}">${e("conf.tentar")}</button></span>`;
+  return `<div class="aviso ${mudou ? "erro" : "info"} conf-bloco" role="status" data-conferencia="${c.estado}" data-conferencia-codigo="${escaparHtml(c.codigo ?? "")}">
+    <strong>${escaparHtml(NOMES_REDE[p.rede])}: ${e(`conf.titulo.${c.estado}` as Chave)}</strong>
+    ${corpo}
+    <p class="leg">${e("conf.lidoEm", { quando: formatarBrasilia(c.em) })}</p>
+    <div class="acoes">${espera}${comDesmarcar ? `<button type="button" class="btn outline pequeno perigo" data-acao="desmarcar" data-pub="${p.id}">${e("cal.desmarcar")}</button>` : ""}</div>
+  </div>`;
+}
+
+function conferenciaRetida(p: Publicacao): boolean {
+  return p.estado === "agendada" && p.conferencia !== null && p.conferencia.estado !== "ok";
 }
 
 // ------------------------------------------------------------------ Calendário
@@ -85,7 +117,8 @@ export function parametrosCalendario(visao: string | null, data: string | null, 
 }
 
 function chip(p: PublicacaoNoCalendario, semana: boolean, ficha?: FichaDoCalendario): string {
-  const tom = p.estado === "publicada" ? "ok" : p.estado === "falhou" ? "erro" : p.estado === "publicando" || p.estado === "verificar" ? "espera" : p.estado === "cancelada" ? "apagada" : "";
+  const retida = conferenciaRetida(p);
+  const tom = retida ? "erro" : p.estado === "publicada" ? "ok" : p.estado === "falhou" ? "erro" : p.estado === "publicando" || p.estado === "verificar" ? "espera" : p.estado === "cancelada" ? "apagada" : "";
   const titulo = p.videoTitulo ?? t("pub.videoN", { id: p.videoId });
   const arte = ficha?.versao ? `/api/videos/${p.videoId}/miniatura.jpg?v=${encodeURIComponent(ficha.versao)}` : null;
   const mini = arte ? `<img class="chip-mini" src="${arte}" alt="" width="18" height="32" loading="lazy" decoding="async" onerror="this.hidden=true" />` : "";
@@ -99,7 +132,7 @@ function chip(p: PublicacaoNoCalendario, semana: boolean, ficha?: FichaDoCalenda
     ${mini}<span class="chip-texto"><span class="chip-hora">${horaBrasilia(p.agendadaPara)}</span>
     <span class="chip-rede">${NOMES_REDE[p.rede]}</span>
     ${semana ? `<span class="chip-titulo">${escaparHtml(titulo)}</span>` : ""}
-    <span class="chip-estado">${escaparHtml(rotuloEstadoPub(p.estado))}</span></span>
+    <span class="chip-estado">${escaparHtml(retida ? t("conf.chip") : rotuloEstadoPub(p.estado))}</span></span>
   </button>${info}</span>`;
 }
 
@@ -130,6 +163,7 @@ function detalhePub(p: PublicacaoNoCalendario): string {
     <div><strong>${escaparHtml(p.videoTitulo ?? t("pub.videoN", { id: p.videoId }))}</strong></div>
     <div class="acoes">${info}</div>
     ${p.erro ? `<div class="aviso erro">${escaparHtml(p.erro)}</div>` : ""}
+    ${blocoConferencia(p, { comDesmarcar: false })}
     ${
       podeRemarcar
         ? `<div class="grade-form">
@@ -157,7 +191,7 @@ function formularioMarcar(ent: EntradaCalendario): string {
     </section>`;
   }
   const contaDe = (r: Rede) => ent.contas.find((c) => c.rede === r);
-  const redes = REDES.map((r) => {
+  const redes = contextoTela().redesAtivas.map((r) => {
     const c = contaDe(r);
     const conectada = c?.conectada === true;
     return `<label class="opcao-rede"><input type="checkbox" name="rede" value="${r}"${conectada ? "" : " disabled data-sem-conta"} />
@@ -264,7 +298,7 @@ function celulaPub(videoId: number, rede: Rede, p: Publicacao | undefined): stri
         linhas.push(`<span class="selo espera">${e("pub.adiada")}</span>`);
         linhas.push(`<span class="leg">${escaparHtml(t("pub.voltaEm", { quando: formatarBrasilia(p.proximaTentativaEm) }))}</span>`);
       } else {
-        linhas.push(seloPub("agendada"));
+        linhas.push(conferenciaRetida(p) ? `<span class="selo erro">${e("conf.chip")}</span>` : seloPub("agendada"));
         linhas.push(`<span class="leg">${escaparHtml(t("pub.marcadaPara", { quando: formatarBrasilia(p.agendadaPara) }))}</span>`);
       }
       if (p.erro) linhas.push(`<span class="leg">${e("pub.motivo", { erro: p.erro })}</span>`);
@@ -314,7 +348,8 @@ export function paginaPublicacoes(videos: VideoComPublicacoes[], contadores: Con
           .map(
             (v) => `<article class="cartao" data-card data-id="${v.id}">
         <div class="cartao-cab"><div><h3>${escaparHtml(v.nome)}</h3><span class="leg">${e("pub.videoNumero", { id: v.id })}</span></div></div>
-        <div class="redes-lado">${REDES.map((r) => celulaPub(v.id, r, v.publicacoes.find((p) => p.rede === r))).join("")}</div>
+        <div class="redes-lado">${contextoTela().redesAtivas.map((r) => celulaPub(v.id, r, v.publicacoes.find((p) => p.rede === r))).join("")}</div>
+        ${v.publicacoes.map((p) => blocoConferencia(p)).join("")}
       </article>`,
           )
           .join("");
@@ -328,125 +363,6 @@ export function paginaPublicacoes(videos: VideoComPublicacoes[], contadores: Con
   return casca({ aba: "publicacoes", titulo: nomeDaAba("publicacoes"), conteudo, contadores, atualizarACada: emAndamento || cont("agendada") > 0 ? 5000 : 15000 });
 }
 
-// --------------------------------------------------------------------- Contas
-
-function linhaConta(c: ContaRede, agora: Date): string {
-  const nome = NOMES_REDE[c.rede];
-  const faltam = ESCOPOS_EXIGIDOS[c.rede].filter((x) => !c.escopos.includes(x));
-  let token = `<span class="linha-valor fraco">${e("contas.semToken")}</span>`;
-  if (c.conectada && c.tokenExpiraEm) {
-    const ms = Date.parse(c.tokenExpiraEm) - agora.getTime();
-    const selo = ms <= 0 ? `<span class="selo erro">${e("contas.expirado")}</span>` : ms < 24 * 3_600_000 ? `<span class="selo espera">${e("contas.expiraEmBreve")}</span>` : "";
-    token = `<span class="linha-valor">${escaparHtml(formatarBrasilia(c.tokenExpiraEm))}</span> ${selo}`;
-  }
-  const real = c.modo === "real";
-  const campoSegredo = (id: string, rotulo: string, ajuda: string, obrig: boolean) =>
-    linha({ rotulo, para: id, ajuda, campo: `<input class="campo" id="${id}" name="${id.split("-")[1]}" type="password" autocomplete="off" spellcheck="false"${obrig ? " required" : ""} />` });
-  const botoes = `<button type="button" class="btn ${c.conectada ? "outline" : "primary"} pequeno" data-abre="conectar" aria-pressed="false" aria-expanded="false">${e(c.conectada ? "contas.reconectar" : "contas.conectar")}</button>${
-    c.conectada ? `<button type="button" class="btn outline pequeno" data-acao="renovar" data-rede="${c.rede}">${e("contas.renovar")}</button>` : ""}`;
-  const linhas = [
-    linha({
-      rotulo: t("contas.conta"),
-      ajuda: c.conectada && !real ? t("contas.seco.texto", { rede: nome }) : undefined,
-      cab: botoes,
-      campo: `<span class="linha-valor">${c.conectada ? escaparHtml(c.contaNome ?? c.contaId ?? "—") : "—"}</span>`,
-    }),
-    linha({ rotulo: t("contas.tokenExpira"), ajuda: t("contas.tokenAjuda"), campo: token }),
-    ...(c.rede === "tiktok"
-      ? [linha({ rotulo: t("contas.refreshExpira"), campo: `<span class="linha-valor">${c.refreshExpiraEm ? escaparHtml(formatarBrasilia(c.refreshExpiraEm)) : "—"}</span>` })]
-      : []),
-    linha({ rotulo: t(`contas.aprovacao.${c.rede}` as Chave), campo: `<span class="linha-valor">${e(c.aprovacaoPlataforma ? "contas.sim" : "contas.aindaNao")}</span>` }),
-    ...(c.conectada && faltam.length > 0
-      ? [`<div class="linha"><div class="aviso erro">${e("contas.faltamPermissoes", { lista: faltam.join(", ") })}</div></div>`]
-      : []),
-  ];
-  const painel = `<div class="painel" data-painel="conectar" hidden style="margin-top:12px">
-      <form class="form-conta" data-rede="${c.rede}" autocomplete="off" style="display:flex;flex-direction:column;gap:4px">
-        <fieldset class="grupo" style="border:0;padding:0;margin:0"><legend class="rotulo">${e("contas.comoConectar")}</legend>
-          <div class="opcoes">
-            <label class="opcao-rede"><input type="radio" name="modo" value="real" checked /> <span>${e("contas.modoReal")}</span></label>
-            <label class="opcao-rede"><input type="radio" name="modo" value="seco" /> <span>${e("contas.modoSeco")}</span></label>
-          </div><span class="linha-ajuda">${e("contas.modoSecoAjuda")}</span></fieldset>
-        <div data-so-real style="display:flex;flex-direction:column">
-          ${linha({ rotulo: t(`contas.idConta.${c.rede}` as Chave), para: `${c.rede}-contaId`, campo: `<input class="campo" id="${c.rede}-contaId" name="contaId" type="text" autocomplete="off" />` })}
-          ${linha({ rotulo: t("contas.nomeMostrar"), para: `${c.rede}-contaNome`, campo: `<input class="campo" id="${c.rede}-contaNome" name="contaNome" type="text" autocomplete="off" />` })}
-          ${campoSegredo(`${c.rede}-accessToken`, t("contas.tokenAcesso"), t("contas.tokenAcessoAjuda"), true)}
-          ${campoSegredo(`${c.rede}-refreshToken`, t(c.rede === "tiktok" ? "contas.refreshTiktok" : "contas.refreshSeHouver"), t("contas.refreshAjuda"), false)}
-          ${linha({ rotulo: t("contas.tokenExpiraBr"), para: `${c.rede}-expiraEm`, campo: `<input class="campo" id="${c.rede}-expiraEm" name="expiraEm" type="datetime-local" />` })}
-          ${linha({ rotulo: t("contas.refreshExpiraOpc"), para: `${c.rede}-refreshExpiraEm`, campo: `<input class="campo" id="${c.rede}-refreshExpiraEm" name="refreshExpiraEm" type="datetime-local" />` })}
-          ${linha({ rotulo: t("contas.escopos"), para: `${c.rede}-escopos`, ajuda: t("contas.escoposAjuda"), campo: `<input class="campo" id="${c.rede}-escopos" name="escopos" type="text" value="${escaparHtml(ESCOPOS_EXIGIDOS[c.rede].join(", "))}" />` })}
-        </div>
-        <p class="linha-ajuda">${e("contas.tokensGuardados")}</p>
-        <div class="acoes"><button type="submit" class="btn primary">${e("contas.salvarConexao")}</button><button type="button" class="btn ghost" data-acao="fechar">${e("acao.cancelar")}</button></div>
-      </form>
-    </div>`;
-  const titulo = `${nome} ${c.conectada ? `<span class="selo ${real ? "ok" : "espera"}">${e(real ? "contas.conectada" : "contas.conectadaSeco")}</span>` : `<span class="selo erro">${e("contas.naoConectada")}</span>`}`;
-  return grupo(titulo, linhas, { id: `conta-${c.rede}`, attrs: `data-card data-rede="${c.rede}"`, extra: painel });
-}
-
-export function paginaContas(contas: ContaRede[], agora: Date, contadores: Contadores = SEM_CONTADORES): string {
-  const nenhuma = contas.every((c) => !c.conectada);
-  const conteudo = `
-  <div><h2>${e("aba.contas")}</h2><p class="leg">${e("contas.subtitulo")}</p></div>
-  ${nenhuma ? `<div class="aviso info">${e("contas.nenhuma")}</div>` : ""}
-  ${contas.map((c) => linhaConta(c, agora)).join("")}
-  <p class="leg">${t("contas.rodape", { link: `<a href="/prontidao" data-nav>${e("aba.prontidao")}</a>` })}</p>`;
-  return casca({ aba: "contas", titulo: nomeDaAba("contas"), conteudo, contadores, atualizarACada: 0 });
-}
-
-// ------------------------------------------------------------------ Prontidão
-
-/** Prazos reais, do PUBLICACAO.md. Escritos sem enfeite (catálogo, chaves pront.prazo.*): o cliente não pode achar que está pronto. */
-const PROVIDENCIAR = [1, 2, 3, 4, 5, 6];
-
-export function paginaProntidao(
-  redes: ProntidaoRede[],
-  ia: { ok: boolean; falta?: string | undefined },
-  contadores: Contadores = SEM_CONTADORES,
-): string {
-  const algumaReal = redes.some((r) => r.prontaParaPublicarDeVerdade);
-  const faixa = algumaReal
-    ? `<div class="aviso ok">${e("pront.prontoEm", { redes: redes.filter((r) => r.prontaParaPublicarDeVerdade).map((r) => r.nome).join(", ") })}</div>`
-    : `<div class="aviso erro" role="status"><strong>${e("pront.nenhumaPronta")}</strong> ${e("pront.nenhumaProntaTexto")}</div>`;
-  const cartao = (r: ProntidaoRede): string => {
-    const estado = r.prontaParaPublicarDeVerdade
-      ? `<span class="selo ok">${e("pront.pronta")}</span>`
-      : r.prontaParaModoSeco
-        ? `<span class="selo espera">${e("pront.soSeco")}</span>`
-        : `<span class="selo erro">${e("contas.naoConectada")}</span>`;
-    const faltam = r.itens.filter((i) => !i.ok).length;
-    const uso = r.uso24h.limite !== null
-      ? t("pront.uso", { usado: r.uso24h.usado, limite: r.uso24h.limite })
-      : t("pront.usoSemLimite", { usado: r.uso24h.usado });
-    return `<section class="config-grupo" data-rede="${r.rede}" id="prontidao-${r.rede}">
-      <div><h3>${escaparHtml(r.nome)} ${estado}</h3>
-        <p class="linha-ajuda">${faltam === 0 ? e("pront.todosCumpridos") : escaparHtml(tp("pront.itensFaltam", faltam))}</p></div>
-      <ul class="checklist">${r.itens
-        .map(
-          (i) => `<li class="${i.ok ? "ok" : "falta"}"><span class="marca-item" aria-hidden="true">${i.ok ? "✓" : "✗"}</span>
-          <div><span>${escaparHtml(i.descricao)}</span><span class="sr-only"> ${e(i.ok ? "pront.srOk" : "pront.srFalta")}</span>${i.ok || !i.falta ? "" : `<div class="leg">${escaparHtml(i.falta)}</div>`}</div></li>`,
-        )
-        .join("")}</ul>
-      <div class="aviso info"><strong>${e("pront.prazoReal")}</strong> ${e(`pront.prazo.${r.rede}` as Chave)}</div>
-      <p class="linha-ajuda" style="margin-top:8px">${escaparHtml(uso)}</p>
-    </section>`;
-  };
-  const conteudo = `
-  <div><h2>${e("aba.prontidao")}</h2><p class="leg">${e("pront.subtitulo")}</p><p class="leg">${e("pront.glossario")}</p></div>
-  ${faixa}
-  ${redes.map(cartao).join("")}
-  <section class="config-grupo">
-    <h3 style="margin-bottom:8px">${e("pront.legendaIa")}</h3>
-    <p>${ia.ok ? `<span class="selo ok">${e("ajustes.ia.presente")}</span>` : `<span class="selo erro">${e("ajustes.ia.ausente")}</span>`}</p>
-    ${ia.ok ? "" : `<p class="leg" style="margin-top:8px">${e("pront.semChave")} <a href="/configuracoes" data-nav>${e("redes.abrirAjustes")}</a></p>`}
-    <p class="leg" style="margin-top:8px">${e("pront.limiteLegenda", { lista: REDES.map((r) => `${NOMES_REDE[r]} ${LIMITE_LEGENDA[r]}`).join(", ") })}</p>
-  </section>
-  <section class="config-grupo">
-    <h3 style="margin-bottom:8px">${e("pront.providenciar.titulo")}</h3>
-    <p class="leg" style="margin-bottom:8px">${e("pront.providenciar.texto")}</p>
-    <ul class="lista-simples">${PROVIDENCIAR.map((n) => `<li>${e(`pront.prov.${n}` as Chave)}</li>`).join("")}</ul>
-  </section>`;
-  return casca({ aba: "prontidao", titulo: nomeDaAba("prontidao"), conteudo, contadores, atualizarACada: 0 });
-}
+export { paginaContas, paginaProntidao } from "./paginas-conectores.js";
 
 export { icone };

@@ -6,6 +6,7 @@ import { escaparHtml } from "./html.js";
 import { t, tp, type Chave } from "./idioma/index.js";
 import { chave, grupo, linha } from "./linhas.js";
 import { casca, e, nomeDaAba, SEM_CONTADORES, type Contadores } from "./paginas.js";
+import { contextoTela } from "./contexto-tela.js";
 import { diaCurto, formatarBrasilia } from "./tempo.js";
 
 /** Segunda a domingo: a ordem em que se lê a semana no Brasil. Os números são os do núcleo (0 = domingo). */
@@ -21,8 +22,10 @@ function blocoDaGrade(g: Grade, n: number): string {
   const dias = DIAS_NA_ORDEM.map(
     (d) => `<label class="pilula"><input type="checkbox" name="dia" value="${d}"${g.dias.includes(d) ? " checked" : ""} /><span>${escaparHtml(diaCurto(d))}</span></label>`,
   ).join("");
-  const redes = REDES.map(
-    (r) => `<label class="pilula"><input type="checkbox" name="rede" value="${r}"${g.redes.includes(r) ? " checked" : ""} /><span>${escaparHtml(NOMES_REDE[r])}</span></label>`,
+  // Só as redes ligadas. Uma rede desligada que já está no bloco continua visível, para a pessoa não perdê-la sem ver.
+  const ativas = contextoTela().redesAtivas;
+  const redes = REDES.filter((r) => ativas.includes(r) || g.redes.includes(r)).map(
+    (r) => `<label class="pilula"><input type="checkbox" name="rede" value="${r}"${g.redes.includes(r) ? " checked" : ""} /><span>${escaparHtml(NOMES_REDE[r])}${ativas.includes(r) ? "" : ` (${e("contas.desligada")})`}</span></label>`,
   ).join("");
   const horas = (g.horarios.length > 0 ? g.horarios : [""]).map(campoHora).join("");
   return `<fieldset class="bloco-grade" data-bloco>

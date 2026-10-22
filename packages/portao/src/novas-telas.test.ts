@@ -396,8 +396,8 @@ test("Configurações, Agendamento e Sites são listas de linhas com fio de 0.5p
   const cfg = principal(await pagina("/configuracoes"));
   assert.match(cfg, /<div class="linha"><div class="linha-cab"><label class="linha-rotulo" for="aj-espacamento">Waiting time between posts \(minutes\)<\/label><span class="linha-cab-dir"><button type="button" class="btn-desfazer" data-acao="desfazer" hidden>Undo<\/button><\/span><\/div><p class="linha-ajuda">The wait between two posts on the same network, so TikTok and Instagram do not block your videos for looking repeated\.<\/p>/);
   assert.match(cfg, /<div class="config-pe" data-pe hidden><button type="submit" class="btn primary">Save<\/button><button type="button" class="btn ghost" data-acao="descartar">Discard<\/button><\/div>/);
-  // um por grupo que tem formulário (Publicação e Carros vendidos), nunca um botão por campo
-  assert.equal((cfg.match(/data-pe/g) ?? []).length, 2, "um Salvar/Descartar no pé de cada grupo, não um botão por campo");
+  // um por grupo que tem formulário (Publicação, Conferência e Carros vendidos), nunca um botão por campo
+  assert.equal((cfg.match(/data-pe/g) ?? []).length, 3, "um Salvar/Descartar no pé de cada grupo, não um botão por campo");
   assert.match(cfg, /Instagram does not accept the file directly: it fetches the video from a web page\./);
   assert.match(cfg, /127\.0\.0\.1 does not work/);
   assert.match(ESTILO, /\.linha \{ display: flex; flex-direction: column; gap: 6px; padding: 12px 0;/);

@@ -14,6 +14,8 @@ import {
   listarContas,
   listarPublicacoesDoVideo,
   espacamentoMinutos,
+  exigirConferencia,
+  validadeConferenciaMin,
   progressoFila,
   ErroPortao,
   ErroPausa,
@@ -46,6 +48,9 @@ import {
 } from "./paginas-publicacao.js";
 import { calcularContadores, dadosRedes, iaDisponivel } from "./dados-telas.js";
 import { calcularProntidao } from "./publicacao/prontidao.js";
+import { FALHAS_DE_CARGA, vistaDosConectores } from "./conectores/index.js";
+import { tratarRotaConferencia } from "./rotas-conferencia.js";
+import { tratarRotaConectores } from "./rotas-conectores.js";
 import { inicioDoDiaUtc, somarDias, ymdBrasilia } from "./tempo.js";
 import { passoDoPublicador, recuperarAoSubir, tratarRotaPublicacao } from "./rotas-publicacao.js";
 import { dadosIA, tratarRotaIA } from "./ia.js";
@@ -349,7 +354,7 @@ async function tratarRequisicaoNoIdioma(req: IncomingMessage, res: ServerRespons
     if (caminho === "/contas" && metodo === "GET") {
       const db = deps.abrirBanco();
       try {
-        responderHtml(res, 200, paginaContas(listarContas(db), deps.agora(), contadoresDe(db)));
+        responderHtml(res, 200, paginaContas(vistaDosConectores(db), FALHAS_DE_CARGA, deps.agora(), contadoresDe(db)));
       } finally {
         db.close();
       }
@@ -367,6 +372,7 @@ async function tratarRequisicaoNoIdioma(req: IncomingMessage, res: ServerRespons
             calcularProntidao(db, deps.envPublicacao ?? process.env, deps.agora()),
             { ok, falta: ok ? undefined : t("pront.legendaIaFalta") },
             contadoresDe(db),
+            vistaDosConectores(db).filter((v) => !v.ativo).map((v) => ({ id: v.conector.id, nome: v.conector.nome })),
           ),
         );
       } finally {
@@ -409,7 +415,7 @@ async function tratarRequisicaoNoIdioma(req: IncomingMessage, res: ServerRespons
         responderHtml(
           res,
           200,
-          paginaAjustes(listarAjustes(db), contarRejeicoesPorMotivo(db), dadosIA(listarAjustes(db), deps.envIA ?? process.env), contadoresDe(db), leiturasParaSaida(db)),
+          paginaAjustes(listarAjustes(db), contarRejeicoesPorMotivo(db), dadosIA(listarAjustes(db), deps.envIA ?? process.env), contadoresDe(db), leiturasParaSaida(db), { exigir: exigirConferencia(db), validadeMin: validadeConferenciaMin(db) }),
         );
       } finally {
         db.close();
@@ -580,6 +586,8 @@ async function tratarRequisicaoNoIdioma(req: IncomingMessage, res: ServerRespons
     }
 
     if (caminho.startsWith("/api/") && (await tratarRotaControle(caminho, metodo, req, res, deps))) return;
+    if (caminho === "/api/conferencia" && (await tratarRotaConferencia(caminho, metodo, req, res, deps))) return;
+    if (caminho.startsWith("/api/conectores") && (await tratarRotaConectores(caminho, metodo, req, res, deps))) return;
     if (caminho.startsWith("/api/sites") && (await tratarRotaSites(caminho, metodo, req, res, deps))) return;
     if (caminho.startsWith("/api/ia/") && (await tratarRotaIA(caminho, metodo, req, res, deps))) return;
 
