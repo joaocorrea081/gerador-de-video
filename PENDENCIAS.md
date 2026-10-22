@@ -13,13 +13,13 @@ ou no terminal. Nada vira ✅ por relatório de subagente.
 | # | O que ele pediu | Estado |
 |---|---|---|
 | A1 | Barra na lateral, não em cima | ✅ |
-| A2 | Barra com a GEOMETRIA do Harness (marca 60px, linha 36px, ícone 28×28, régua 56px) | ⬜ |
-| A3 | Selecionado sem cor de destaque, igual ao hover deles | ⬜ |
-| A4 | Configurações ancorada no rodapé da barra | ⬜ |
-| A5 | Configuração como LISTA DE LINHAS com fio de 0.5px, não cartões | ⬜ |
-| A6 | Todas as grades mais largas, sem vazio | 🔧 |
-| A7 | Fila: acabar com o cânion entre Decisão e Ferramentas | 🔧 |
-| A8 | Fila: medida de texto legível, não linha atravessando a tela | 🔧 |
+| A2 | Barra com a GEOMETRIA do Harness (marca 60px, linha 36px, ícone 28×28, régua 56px) | ✅ |
+| A3 | Selecionado sem cor de destaque, igual ao hover deles | ✅ |
+| A4 | Configurações ancorada no rodapé da barra | ✅ |
+| A5 | Configuração como LISTA DE LINHAS com fio de 0.5px, não cartões | ✅ |
+| A6 | Todas as grades mais largas, sem vazio | ✅ |
+| A7 | Fila: acabar com o cânion entre Decisão e Ferramentas | ✅ |
+| A8 | Fila: medida de texto legível, não linha atravessando a tela | ✅ |
 | A9 | Ajustes vira Configurações | ✅ |
 | A10 | Tema vira ícone; escolha completa em Configurações | ✅ |
 | A11 | Prévia das redes parecendo o feed de verdade | 🔧 |
@@ -29,11 +29,11 @@ ou no terminal. Nada vira ✅ por relatório de subagente.
 | # | | |
 |---|---|---|
 | B1 | Quatro idiomas, seletor, padrão inglês | ✅ |
-| B2 | Rótulos de tema saem em português com a tela em inglês | ⬜ |
-| B3 | Dois seletores de idioma com comportamentos diferentes | ⬜ |
-| B4 | "Ad language" lê como "Add language" — trocar o nome | ⬜ |
-| B5 | Preço `R$22,500.00` em inglês lê como vinte e dois reais | ⬜ |
-| B6 | Jargão: "espaçamento mínimo" e "endereço público" em português de gente | ⬜ |
+| B2 | Rótulos de tema saem em português com a tela em inglês | ✅ |
+| B3 | Dois seletores de idioma com comportamentos diferentes | ✅ |
+| B4 | "Ad language" lê como "Add language" — trocar o nome | ✅ |
+| B5 | Preço `R$22,500.00` em inglês lê como vinte e dois reais | ✅ |
+| B6 | Jargão: "espaçamento mínimo" e "endereço público" em português de gente | ✅ |
 | B7 | 28 chaves sem tradução em romeno e russo | ⬜ |
 
 ## C. Painel — comportamento
@@ -42,9 +42,9 @@ ou no terminal. Nada vira ✅ por relatório de subagente.
 |---|---|---|
 | C1 | Refazer mostra o cartão trabalhando; segundo clique impossível | ⬜ |
 | C2 | Atualizar só o cartão, sem recarregar a página nem pular pro topo | ⬜ |
-| C3 | Chave que desliza no lugar do botão "Ligar" + etiqueta | ⬜ |
+| C3 | Chave que desliza no lugar do botão "Ligar" + etiqueta | ✅ |
 | C4 | Erro vermelho de servidor vira "reconectando" discreto | ⬜ |
-| C5 | Miniatura do vídeo no calendário ao passar o mouse | ⬜ |
+| C5 | Miniatura do vídeo no calendário ao passar o mouse | ✅ |
 | C6 | Histórico com propósito: o que SAIU, com link do post | ⬜ |
 | C7 | Desfazer no rejeitar (auditoria A-3) | ⬜ |
 | C8 | Painel mente que está renderizando job morto (auditoria A-1) | ⬜ |
@@ -56,10 +56,10 @@ ou no terminal. Nada vira ✅ por relatório de subagente.
 |---|---|---|
 | D1 | Foto grande, não "pequenininha" | ✅ |
 | D2 | Tags entrando uma de cada vez, sem tapar o carro | ✅ |
-| D3 | Quatro modelos com personalidade diferente | 🔧 feito no montador, NÃO LIGADO |
-| D4 | Cor escolhível + cor automática da foto | 🔧 idem |
+| D3 | Quatro modelos com personalidade diferente | ✅ |
+| D4 | Cor escolhível + cor automática da foto | ✅ |
 | D5 | Regenerar oferecendo variações | 🔧 idem |
-| D6 | Modelo escolhido chega de verdade no vídeo renderizado | 🔧 **é o bug que ele viu** |
+| D6 | Modelo escolhido chega de verdade no vídeo renderizado | ✅ |
 
 ## E. Redes sociais
 
@@ -78,19 +78,19 @@ ou no terminal. Nada vira ✅ por relatório de subagente.
 
 | # | | |
 |---|---|---|
-| F1 | Cadastrar o site a pesquisar, com teste antes | ✅ motor · ⬜ tela |
+| F1 | Cadastrar o site a pesquisar, com teste antes | ✅ |
 | F2 | Leitor genérico de JSON-LD | ✅ motor |
-| F3 | Plano B com o navegador da pessoa (BrowserSkill) | ✅ motor · ⬜ tela |
+| F3 | Plano B com o navegador da pessoa (BrowserSkill) | ✅ |
 | F4 | Detectar bloqueio (Cloudflare, captcha, login) | ✅ motor |
 
 ## G. Inteligência artificial
 
 | # | | |
 |---|---|---|
-| G1 | Cinco provedores: Anthropic, OpenAI, Google, DeepSeek, OpenRouter | ✅ motor · ⬜ tela |
-| G2 | Testar conexão, dizendo modelo e tokens | ✅ motor · ⬜ tela |
-| G3 | Listar os modelos REAIS da conta da pessoa | ✅ motor · ⬜ tela |
-| G4 | Preço por token quando o provedor informa | ✅ motor · ⬜ tela |
+| G1 | Cinco provedores: Anthropic, OpenAI, Google, DeepSeek, OpenRouter | ✅ |
+| G2 | Testar conexão, dizendo modelo e tokens | ✅ |
+| G3 | Listar os modelos REAIS da conta da pessoa | ✅ |
+| G4 | Preço por token quando o provedor informa | ✅ |
 
 ## H. Controle e segurança
 

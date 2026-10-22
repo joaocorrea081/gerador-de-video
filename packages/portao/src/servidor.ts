@@ -72,6 +72,8 @@ interface VideoComProduto {
   corpo: string | null;
   fundo: string | null;
   ritmo: string | null;
+  escolhas: Record<string, string | null>;
+  produtoId: number;
   caminhoMp4: string | null;
   criadoEm: string;
   atualizadoEm: string;
@@ -147,6 +149,8 @@ function anexarProduto(db: Database.Database, video: Video): VideoComProduto {
     corpo: video.corpo,
     fundo: video.fundo,
     ritmo: video.ritmo,
+    escolhas: { modelo: video.modelo, enquadramento: video.enquadramento, cor: video.cor },
+    produtoId: video.produtoId,
     caminhoMp4: video.caminhoMp4,
     criadoEm: video.criadoEm,
     atualizadoEm: video.atualizadoEm,

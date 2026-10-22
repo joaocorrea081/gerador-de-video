@@ -45,7 +45,7 @@ function linhaSite(s: Site): string {
 
 export function paginaSites(sites: Site[], contadores: Contadores = SEM_CONTADORES): string {
   const lista = sites.length === 0 ? [`<div class="linha"><p class="linha-valor">${e("sites.nenhum")}</p></div>`] : sites.map(linhaSite);
-  const todasAsDescricoes = `<ul class="lista-simples">${MODOS_NAVEGACAO.map((m) => `<li><strong>${escaparHtml(modoNome(m))}.</strong> ${escaparHtml(modoAjuda(m))}</li>`).join("")}</ul>`;
+  const todasAsDescricoes = `<ul class="lista-simples">${MODOS_NAVEGACAO.map((m) => `<li>${escaparHtml(modoAjuda(m))}</li>`).join("")}</ul>`;
   const conteudo = `
   <div class="config-pagina">
   <div><h2>${e("aba.sites")}</h2><p class="leg">${e("sites.subtitulo")}</p></div>

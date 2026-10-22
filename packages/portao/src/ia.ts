@@ -60,7 +60,7 @@ export function blocoModelos(info: InfoProvedor, listagem: ListagemModelos | nul
   const aprovados = new Set(info.modelos.map((m) => m.id));
   const opcoes = lista.modelos
     .map((m) => {
-      const rotulo = [m.nome ?? m.id, m.recomendado ? `(${t("ia.recomendado")})` : "", aprovados.has(m.id) ? "" : `(${t("ia.foraDaLista")})`]
+      const rotulo = [lista.origem === "sugerida" ? m.id : (m.nome ?? m.id), m.recomendado ? `(${t("ia.recomendado")})` : "", aprovados.has(m.id) ? "" : `(${t("ia.foraDaLista")})`]
         .filter(Boolean).join(" ") + precoDe(m);
       return `<option value="${escaparHtml(m.id)}"${m.id === selecionado ? " selected" : ""}${aprovados.has(m.id) ? "" : " disabled"}>${escaparHtml(rotulo)}</option>`;
     })

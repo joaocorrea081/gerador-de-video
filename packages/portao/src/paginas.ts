@@ -4,14 +4,15 @@
 // e atualiza a tela sozinho. Visual: tokens do tema (ver estilo.ts e tema/PADRAO.md).
 // Nenhum texto visível mora aqui: tudo sai do catálogo de idiomas (idioma/*.ts) por t().
 import {
-  FUNDOS_ESCOLHA,
+  listarCardapio,
+  PADRAO_CARDAPIO,
   MOTIVOS_REJEICAO,
-  RITMOS_ESCOLHA,
   LIMITE_CORPO_TEXTO,
   LIMITE_TITULO_TEXTO,
   INTERVALO_MINIMO_MIN,
   type Agendamento,
   type ItemEstoque,
+  type OpcaoCardapio,
   type ProgressoFila,
   NOMES_REDE,
   type Rede,
@@ -24,7 +25,7 @@ import { formatarKm, formatarPreco } from "./dinheiro.js";
 import { formatarBrasilia, formatarDuracao } from "./tempo.js";
 import { escaparHtml } from "./html.js";
 import { blocoRedes, partesRedes, type DadosRedes } from "./paginas-redes.js";
-import { IDIOMAS, NOME_NATIVO, idiomaAtual, localeDe, rotuloDe, t, tp, type Chave } from "./idioma/index.js";
+import { IDIOMAS, NOME_NATIVO, idiomaAtual, localeDe, rotuloDe, t, tOpcional, tp, type Chave } from "./idioma/index.js";
 
 export type Aba =
   | "fila" | "calendario" | "publicacoes" | "estoque" | "historico" | "contas" | "prontidao" | "agendamento" | "sites" | "configuracoes";
@@ -292,15 +293,21 @@ function anuncio(v: VideoParaCartao): string {
 
 // ------------------------------------------------------------------- Fila
 
-function opcoes(grupo: string, valores: readonly string[], prefixo: string, atual: string | null): string {
-  const marcado = atual && valores.includes(atual) ? atual : valores[0];
-  return `<div class="opcoes" data-grupo="${grupo}" role="group">${valores
+/** Grupo do cardápio: título e botões. As opções vêm da lista do núcleo; o nome legível vem do catálogo, ou do próprio núcleo se o catálogo não o conhece. */
+function opcoesCardapio(campo: string, lista: readonly OpcaoCardapio<string>[], atual: string | null | undefined): string {
+  const padrao = (PADRAO_CARDAPIO as unknown as Record<string, unknown>)[campo];
+  const querido = atual ?? (typeof padrao === "string" ? padrao : undefined);
+  const marcado = lista.some((o) => o.id === querido) ? querido : lista[0]?.id;
+  return `<div class="opcoes" data-grupo="${campo}" role="group" aria-label="${escaparHtml(tOpcional(`cardapio.grupo.${campo}`) ?? campo)}">${lista
     .map(
-      (val) =>
-        `<button type="button" class="btn outline" data-escolha="${escaparHtml(val)}" aria-pressed="${val === marcado}">${escaparHtml(rotuloDe(prefixo, val))}</button>`,
+      (o) =>
+        `<button type="button" class="btn outline" data-escolha="${escaparHtml(o.id)}" aria-pressed="${o.id === marcado}">${escaparHtml(tOpcional(`cardapio.${campo}.${o.id}`) ?? tOpcional(`${campo}.${o.id}`) ?? o.nome)}</button>`,
     )
     .join("")}</div>`;
 }
+
+/** Nome do campo que a rota de refazer recebe, para cada lista do cardápio do núcleo. Protocolo, não texto de tela. */
+const CAMPO_DO_CARDAPIO: Record<string, string> = { modelos: "modelo", enquadramentos: "enquadramento", cores: "cor", fundos: "fundo", ritmos: "ritmo" };
 
 function painelRefazer(v: VideoParaCartao): string {
   const n = v.quantidadeFotos ?? 0;
@@ -322,8 +329,13 @@ function painelRefazer(v: VideoParaCartao): string {
       </div>`
       : "";
   return `<div class="painel" data-painel="refazer" hidden>
-    <div class="grupo"><span class="rotulo">${e("refazer.fundo")}</span>${opcoes("fundo", FUNDOS_ESCOLHA, "fundo", v.fundo)}</div>
-    <div class="grupo"><span class="rotulo">${e("refazer.ritmo")}</span>${opcoes("ritmo", RITMOS_ESCOLHA, "ritmo", v.ritmo)}</div>
+    ${Object.entries(listarCardapio())
+      .map(([lista, opcoesDoGrupo]) => {
+        const campo = CAMPO_DO_CARDAPIO[lista] ?? lista;
+        const atual = campo === "fundo" ? v.fundo : campo === "ritmo" ? v.ritmo : v.escolhas?.[campo];
+        return `<div class="grupo"><span class="rotulo">${escaparHtml(tOpcional(`cardapio.grupo.${campo}`) ?? campo)}</span>${opcoesCardapio(campo, opcoesDoGrupo as OpcaoCardapio<string>[], atual)}</div>`;
+      })
+      .join("")}
     ${fotos}
     <p class="leg">${e("refazer.aviso")}</p>
     <div class="acoes">

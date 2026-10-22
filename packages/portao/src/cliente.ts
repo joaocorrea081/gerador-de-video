@@ -733,9 +733,11 @@ const CORPO_JS = String.raw`
       executar(el, T("js.rejeitando"), function () { return chamar("POST", "/api/videos/" + id + "/rejeitar", { motivo: motivo }); },
         function () { aviso("ok", T("js.rejeitado", { motivo: T("motivo." + motivo) })); });
     } else if (acao === "refazer") {
-      var fundo = card.querySelector('[data-grupo="fundo"] [aria-pressed="true"]');
-      var ritmo = card.querySelector('[data-grupo="ritmo"] [aria-pressed="true"]');
-      var corpoReq = { fundo: fundo.getAttribute("data-escolha"), ritmo: ritmo.getAttribute("data-escolha") };
+      var corpoReq = {};
+      card.querySelectorAll('.painel[data-painel="refazer"] [data-grupo]').forEach(function (g) {
+        var marcado = g.querySelector('[aria-pressed="true"]');
+        if (marcado) corpoReq[g.getAttribute("data-grupo")] = marcado.getAttribute("data-escolha");
+      });
       var ordem = card.querySelector(".ordem");
       if (ordem && ordem.getAttribute("data-mudou")) corpoReq.ordemFotos = lerOrdem(card);
       executar(el, T("js.enviandoFila"), function () { return chamar("POST", "/api/videos/" + id + "/refazer", corpoReq); },

@@ -422,9 +422,60 @@ test("barra lateral com a geometria do Harness; selecionado = hover; Configuraç
 test("atualização automática: servidor fora do ar vira aviso calmo (reconectando), com espera crescente, sem tarja vermelha", () => {
   assert.match(CLIENTE_JS, /id = "aviso-reconectando"; el\.className = "aviso info"/);
   assert.match(CLIENTE_JS, /Math\.min\(30000, 2000 \* Math\.pow\(2, tentativasRede\)\)/);
-  const atualizar = /function atualizar\(forcar\) \{[\s\S]*?\n  \}\n/.exec(CLIENTE_JS)![0];
+  const atualizar = /function atualizar\(forcar, alvoId\) \{[\s\S]*?\n  \}\n/.exec(CLIENTE_JS)![0];
   assert.doesNotMatch(atualizar, /aviso\("erro"/);
   assert.match(atualizar, /reconectando\(true\)/);
   assert.match(atualizar, /reconectando\(false\)/);
   assert.match(CLIENTE_JS, /"js\.reconectando":"Reconectando\.\.\."/);
+});
+
+// ------------------------------------------------- cartão que trabalha e atualização no lugar
+
+function videoComEstado(estado: string, produtoId = 1): number {
+  const db = abrir();
+  const { video } = criarVideoComJob(db, { produtoId, titulo: "Corolla 2020", corpo: "Texto", fundo: "claro", ritmo: "calmo", ordemFotos: [] });
+  db.prepare("UPDATE video SET estado = ?, caminho_mp4 = ? WHERE id = ?").run(estado, estado === "aguardando_aprovacao" ? mp4 : null, video.id);
+  db.close();
+  return video.id;
+}
+
+test("Refazer em andamento: o cartão mostra que está trabalhando, com progresso, e as ações vêm disabled de verdade", async () => {
+  const antigo = videoComEstado("aguardando_aprovacao");
+  const novo = videoComEstado("rascunho");
+  const html = principal(await pagina("/fila"));
+  const cartao = (id: number): string => new RegExp(`<article class="cartao fila-cartao[^"]*" data-card data-id="${id}"[\\s\\S]*?</article>`).exec(html)![0];
+  const fazendo = cartao(novo);
+  assert.match(fazendo, /class="cartao fila-cartao trabalhando"[^>]*aria-busy="true"/);
+  assert.match(fazendo, /This video is being made\. Nothing can be changed until it finishes/);
+  assert.match(fazendo, /role="progressbar"/);
+  const botoes = [...fazendo.matchAll(/<button type="button"[^>]*>/g)].map((m) => m[0]);
+  assert.ok(botoes.length > 0);
+  for (const b of botoes) assert.match(b, /disabled/, b);
+  assert.doesNotMatch(fazendo, /data-painel="refazer"/, "sem painel para abrir, logo sem segundo clique");
+  // o cartão antigo do mesmo carro fica travado (não é punido com erro: o clique é impossível)
+  const travado = cartao(antigo);
+  assert.match(travado, /A new version of this video is being made\. This card stays locked until it is ready\./);
+  assert.match(travado, /aria-busy="true"/);
+  for (const b of [...travado.matchAll(/<button type="button"[^>]*>/g)].map((m) => m[0])) assert.match(b, /disabled/, b);
+});
+
+test("Atualização no lugar: só o cartão afetado é trocado, sem recarregar a lista nem mexer na rolagem", () => {
+  assert.match(CLIENTE_JS, /function reconciliarLista\(atual, nova, alvoId\)/);
+  assert.match(CLIENTE_JS, /existente\.sig === n\.outerHTML/, "cartão que não mudou não é recriado");
+  assert.match(CLIENTE_JS, /existente\.replaceWith\(n\)/);
+  assert.match(CLIENTE_JS, /atualizar nunca mexe na rolagem/);
+  assert.match(CLIENTE_JS, /function cartaoOcupado\(c\)/, "cartão com painel aberto, texto sendo editado ou vídeo tocando é preservado");
+  const executar = /function executar\(botao[\s\S]*?\n  \}\n/.exec(CLIENTE_JS)![0];
+  assert.match(executar, /atualizar\(true, alvoId\)/, "depois de uma ação, só o cartão da ação é forçado");
+  assert.match(CLIENTE_JS, /c\.classList\.add|card\.classList\.add\("trabalhando"\)/);
+  assert.match(CLIENTE_JS, /card\.setAttribute\("aria-busy", "true"\)/);
+  assert.doesNotMatch(/function atualizar\(forcar, alvoId\) \{[\s\S]*?\n  \}\n/.exec(CLIENTE_JS)![0], /scrollTo/);
+});
+
+test("Refazer: as escolhas novas do cardápio (modelo, enquadramento, cor) chegam à rota e ao vídeo novo", async () => {
+  const id = videoComEstado("aguardando_aprovacao");
+  const r = await ir("POST", `/api/videos/${id}/refazer`, { fundo: "escuro", modelo: "energico", enquadramento: "cheia", cor: "azul" });
+  assert.equal(r.status, 200, r.texto);
+  assert.deepEqual([r.json.video.fundo, r.json.video.modelo, r.json.video.enquadramento, r.json.video.cor], ["escuro", "energico", "cheia", "azul"]);
+  assert.equal((await ir("POST", `/api/videos/${id}/refazer`, { modelo: "inventado" })).status, 400);
 });

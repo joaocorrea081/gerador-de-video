@@ -188,6 +188,9 @@ export async function tratarRotaAcao(
       const { video, job } = refazerVideo(db, idRefazer, {
         fundo: corpo["fundo"],
         ritmo: corpo["ritmo"],
+        modelo: corpo["modelo"],
+        enquadramento: corpo["enquadramento"],
+        cor: corpo["cor"],
         ordemFotos: corpo["ordemFotos"],
       });
       responderJson(res, 200, { video, job });

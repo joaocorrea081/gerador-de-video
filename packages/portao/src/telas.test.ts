@@ -9,6 +9,7 @@ import Database from "better-sqlite3";
 import {
   criarVideoComJob,
   FUNDOS_ESCOLHA,
+  listarCardapio,
   marcarJobConcluido,
   MOTIVOS_REJEICAO,
   migrar,
@@ -173,17 +174,23 @@ test("Fila: cartão tem player, ficha, texto e as cinco ações", async () => {
   assert.match(html, /maxlength="400"/);
 });
 
-test("Fila: o seletor de refazer só oferece o cardápio fechado", async () => {
+test("Fila: o painel de refazer é montado da lista do núcleo (listarCardapio) e só oferece o cardápio fechado", async () => {
   semear();
   videoPronto();
   const { html } = await pegar("/fila");
-  const fundos = [...html.matchAll(/data-grupo="fundo"[^>]*>(.*?)<\/div>/gs)][0]![1]!;
-  const ritmos = [...html.matchAll(/data-grupo="ritmo"[^>]*>(.*?)<\/div>/gs)][0]![1]!;
-  assert.deepEqual([...fundos.matchAll(/data-escolha="([^"]+)"/g)].map((m) => m[1]), [...FUNDOS_ESCOLHA]);
-  assert.deepEqual([...ritmos.matchAll(/data-escolha="([^"]+)"/g)].map((m) => m[1]), [...RITMOS_ESCOLHA]);
-  assert.equal((html.match(/data-grupo="/g) ?? []).length, 2, "só fundo e ritmo (mais a ordem das fotos)");
+  const cardapio = listarCardapio();
+  const campos: Record<string, string> = { modelos: "modelo", enquadramentos: "enquadramento", cores: "cor", fundos: "fundo", ritmos: "ritmo" };
+  for (const [lista, opcoes] of Object.entries(cardapio)) {
+    const campo = campos[lista]!;
+    const bloco = [...html.matchAll(new RegExp(`data-grupo="${campo}"[^>]*>(.*?)</div>`, "gs"))][0]![1]!;
+    assert.deepEqual([...bloco.matchAll(/data-escolha="([^"]+)"/g)].map((m) => m[1]), opcoes.map((o: { id: string }) => o.id), campo);
+  }
+  assert.deepEqual([...FUNDOS_ESCOLHA], cardapio.fundos.map((o) => o.id));
+  assert.deepEqual([...RITMOS_ESCOLHA], cardapio.ritmos.map((o) => o.id));
+  assert.equal((html.match(/data-grupo="/g) ?? []).length, 5, "modelo, enquadramento, cor, fundo e ritmo (mais a ordem das fotos)");
   assert.equal((html.match(/data-foto="/g) ?? []).length, 3, "3 fotos na ordem");
   assert.doesNotMatch(html, /name="(cor|musica|fonte|prompt)"/);
+  assert.match(html, />Institucional<\/button>/, "nome legível do catálogo");
 });
 
 test("Fila: vídeo renderizando não oferece aprovar", async () => {
