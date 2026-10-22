@@ -25,7 +25,7 @@ export function calcularContadores(db: Database.Database): Contadores {
 // ffprobe a cada atualização da tela seria desperdício: o resultado só muda se o arquivo mudar.
 const cacheMidia = new Map<string, CaracteristicasMidia>();
 
-async function medir(deps: Dependencias, caminho: string): Promise<CaracteristicasMidia> {
+export async function medir(deps: Dependencias, caminho: string): Promise<CaracteristicasMidia> {
   if (deps.lerMidia) return deps.lerMidia(caminho); // injetado (teste): sem cache
   const st = statSync(caminho); // lança se o arquivo sumiu
   const chave = `${caminho}:${st.mtimeMs}:${st.size}`;

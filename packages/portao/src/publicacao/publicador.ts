@@ -87,7 +87,7 @@ export interface Execucao {
  * problema por rede + código, então a frase vem do catálogo (midia.<rede>.<código>) com os números medidos no arquivo.
  * Sem tradução para o par, fica a frase original do núcleo.
  */
-function localizarProblema(rede: Rede, p: { codigo: string; mensagem: string }, c: CaracteristicasMidia): { codigo: string; mensagem: string } {
+export function localizarProblema(rede: Rede, p: { codigo: string; mensagem: string }, c: CaracteristicasMidia): { codigo: string; mensagem: string } {
   const um = new Intl.NumberFormat(localeDe(), { minimumFractionDigits: 1, maximumFractionDigits: 1 });
   const params = {
     dur: um.format(c.duracaoSegundos),

@@ -80,7 +80,9 @@ const CORPO_JS = String.raw`
   escuroDoSistema.addEventListener("change", function () { if (lerTema() === "system") aplicarTema("system"); });
 
   // ---------- avisos (erros no idioma escolhido, sempre visíveis) ----------
-  function aviso(tipo, texto, link) {
+  // extra: { fixo: true } não some sozinho; { desfazer: { segundos, aoClicar(aviso) } } traz um botão com contagem regressiva
+  function aviso(tipo, texto, link, extra) {
+    extra = extra || {};
     var area = document.getElementById("avisos");
     var el = document.createElement("div");
     el.className = "aviso " + tipo;
@@ -96,9 +98,23 @@ const CORPO_JS = String.raw`
       a.className = "btn outline pequeno"; a.href = link.href; a.textContent = link.rotulo;
       el.appendChild(a);
     }
+    if (extra.desfazer) {
+      var d = document.createElement("button");
+      d.className = "btn outline pequeno"; d.type = "button"; d.setAttribute("data-desfazer", "1");
+      var restante = extra.desfazer.segundos;
+      var rotulo = function () { d.textContent = T("acao.desfazer") + " (" + restante + ")"; };
+      rotulo();
+      var relogio = setInterval(function () {
+        restante--;
+        if (restante <= 0 || !document.body.contains(el)) { clearInterval(relogio); el.remove(); } else rotulo();
+      }, 1000);
+      d.addEventListener("click", function () { clearInterval(relogio); d.disabled = true; extra.desfazer.aoClicar(el); });
+      el.appendChild(d);
+    }
     el.appendChild(x);
     area.appendChild(el);
-    if (tipo !== "erro") setTimeout(function () { el.remove(); }, 8000);
+    if (tipo !== "erro" && !extra.fixo && !extra.desfazer) setTimeout(function () { el.remove(); }, 8000);
+    return el;
   }
 
   // ---------- chamada ao servidor ----------
@@ -318,6 +334,28 @@ const CORPO_JS = String.raw`
     aplicarLateral(rec); ajustarInert();
   })();
 
+  // ---------- parar tudo: o botão e a faixa mostram sempre o estado de verdade ----------
+  function pintarPausa(p) {
+    var b = document.getElementById("pausa-botao");
+    if (b) {
+      b.setAttribute("data-pausado", p.pausado ? "1" : "0"); b.classList.toggle("retomar", !!p.pausado);
+      var tx = b.querySelector(".parar-texto"); var rot = b.getAttribute(p.pausado ? "data-rotulo-retomar" : "data-rotulo-parar"); if (tx) tx.textContent = rot; b.title = rot;
+    }
+    var ban = document.getElementById("pausa-banner");
+    if (ban) { ban.hidden = !p.pausado; var st = ban.querySelector("[data-pausa-texto]"); if (st) st.textContent = p.texto || ""; }
+  }
+  function lerPausa() { return chamar("GET", "/api/pausa").then(pintarPausa, function () {}); }
+  setInterval(function () { if (!document.hidden) lerPausa(); }, 10000);
+  var avisoDaPausa = null;
+  function nomeLembrado() { try { return localStorage.getItem("painel-nome") || ""; } catch (e) { return ""; } }
+  function lembrarNome(n) { try { localStorage.setItem("painel-nome", n); } catch (e) {} }
+  function abrirAprovado(html) {
+    var dlg = document.getElementById("dlg-aprovado");
+    dlg.querySelector("[data-aprovado-corpo]").innerHTML = html;
+    if (!dlg.open) dlg.showModal();
+    var primeiro = dlg.querySelector('button[type="submit"]') || dlg.querySelector("button"); if (primeiro) primeiro.focus();
+  }
+
   // ---------- botão ocupado ----------
   function ocupar(botao, texto) {
     var card = botao.closest("[data-card]") || principal();
@@ -441,6 +479,7 @@ const CORPO_JS = String.raw`
       }, function (er) { var mm = mensagemDeErro(er); aviso("erro", mm.texto, mm.link); });
       return;
     }
+    if (t.matches && t.matches("#grade-tiktok")) { atualizarPrevisao(null); return; }
     if (t.matches && t.matches("[data-idioma-anuncio]")) {
       chamar("POST", "/api/ajustes", { chave: "idioma_anuncio", valor: t.value }).then(function () { aviso("ok", T("js.idiomaSalvo")); },
         function (er) { var mm = mensagemDeErro(er); aviso("erro", mm.texto, mm.link); });
@@ -533,12 +572,40 @@ const CORPO_JS = String.raw`
   document.addEventListener("focusout", function (ev) { var c = chipDe(ev); if (c) esconderCartao(c); });
   document.addEventListener("keydown", function (ev) { if (ev.key === "Escape" && flutuante && !flutuante.hidden) esconderCartao(null); });
 
+  // ---------- grade de publicação ----------
+  function coletarGrades() {
+    return Array.prototype.map.call(document.querySelectorAll("#grade-blocos [data-bloco]"), function (b) {
+      return {
+        dias: Array.prototype.map.call(b.querySelectorAll('input[name="dia"]:checked'), function (i) { return Number(i.value); }),
+        horarios: Array.prototype.map.call(b.querySelectorAll('input[type="time"]'), function (i) { return i.value; }).filter(Boolean),
+        redes: Array.prototype.map.call(b.querySelectorAll('input[name="rede"]:checked'), function (i) { return i.value; })
+      };
+    });
+  }
+  function renumerarBlocos() {
+    var blocos = document.querySelectorAll("#grade-blocos [data-bloco]");
+    blocos.forEach(function (b, i) { b.querySelector("[data-bloco-titulo]").textContent = T("js.grade.bloco", { n: i + 1 }); });
+    var vazio = document.querySelector("#grade-blocos [data-sem-blocos]"); if (vazio) vazio.hidden = blocos.length > 0;
+  }
+  function dadosDaPrevisao() {
+    var tk = document.getElementById("grade-tiktok"); var d = { grades: coletarGrades() };
+    if (tk && tk.value) d.visibilidadeTiktok = tk.value;
+    return d;
+  }
+  function atualizarPrevisao(botao) {
+    var alvo = document.getElementById("grade-previsao"); if (!alvo) return Promise.resolve();
+    var fazer = function () { return chamar("POST", "/api/plano/previsao", dadosDaPrevisao()); };
+    var depois = function (r) { alvo.innerHTML = r.html; };
+    if (botao) return executarLocal(botao, T("js.grade.atualizando"), fazer, depois);
+    return fazer().then(depois, function (e) { var m = mensagemDeErro(e); aviso("erro", m.texto, m.link); });
+  }
+
   // ---------- ações ----------
 
   document.addEventListener("click", function (ev) {
     var interruptor = ev.target.closest(".chave[data-campo]");
     if (interruptor) { interruptor.setAttribute("aria-checked", interruptor.getAttribute("aria-checked") === "true" ? "false" : "true"); return; }
-    var el = ev.target.closest("[data-acao],[data-abre],[data-escolha]");
+    var el = ev.target.closest("[data-acao],[data-abre],[data-escolha],[data-sugestao]");
     if (!el || el.disabled) return;
     var card = el.closest("[data-card]");
     var id = card ? card.getAttribute("data-id") : null;
@@ -547,6 +614,19 @@ const CORPO_JS = String.raw`
 
     if (el.hasAttribute("data-escolha")) {
       el.parentNode.querySelectorAll("[data-escolha]").forEach(function (b) { b.setAttribute("aria-pressed", b === el ? "true" : "false"); });
+      var painelE = el.closest(".painel");
+      if (painelE) painelE.querySelectorAll("[data-sugestao]").forEach(function (b) { b.setAttribute("aria-pressed", "false"); });
+      return;
+    }
+
+    // uma sugestão de variação preenche os botões do painel (só modelo, cor e enquadramento); a pessoa ajusta o resto
+    if (el.hasAttribute("data-sugestao")) {
+      var sug = {}; try { sug = JSON.parse(el.getAttribute("data-sugestao")); } catch (e) { sug = {}; }
+      var painelS = el.closest(".painel");
+      Object.keys(sug).forEach(function (campo) {
+        painelS.querySelectorAll('[data-grupo="' + campo + '"] [data-escolha]').forEach(function (b) { b.setAttribute("aria-pressed", b.getAttribute("data-escolha") === sug[campo] ? "true" : "false"); });
+      });
+      el.parentNode.querySelectorAll("[data-sugestao]").forEach(function (b) { b.setAttribute("aria-pressed", b === el ? "true" : "false"); });
       return;
     }
 
@@ -559,15 +639,17 @@ const CORPO_JS = String.raw`
     if (acao === "descartar") { var fd = el.closest("form"); fd.reset(); setTimeout(function () { sujo(fd); }, 0); return; }
 
     // ----- chaves (switch): o estado é a posição da chave
-    if (acao === "agendamento-alternar" || acao === "site-ativo") {
+    if (acao === "agendamento-alternar" || acao === "site-ativo" || acao === "plano-alternar") {
       var novo = el.getAttribute("aria-checked") !== "true";
       el.setAttribute("aria-checked", novo ? "true" : "false"); el.disabled = true;
       var pedido = acao === "agendamento-alternar"
         ? chamar("POST", "/api/agendamento", { ligado: novo })
-        : chamar("POST", "/api/sites/" + encodeURIComponent(el.getAttribute("data-site")) + "/ativo", { ativo: novo });
+        : acao === "plano-alternar"
+          ? chamar("POST", "/api/plano/ativo", { ativo: novo })
+          : chamar("POST", "/api/sites/" + encodeURIComponent(el.getAttribute("data-site")) + "/ativo", { ativo: novo });
       pedido.then(function () {
         el.disabled = false;
-        aviso("ok", T(acao === "site-ativo" ? (novo ? "js.sites.ligado" : "js.sites.desligado") : (novo ? "js.agendamentoLigado" : "js.agendamentoDesligado")));
+        aviso("ok", T(acao === "plano-alternar" ? (novo ? "js.grade.ligada" : "js.grade.desligada") : acao === "site-ativo" ? (novo ? "js.sites.ligado" : "js.sites.desligado") : (novo ? "js.agendamentoLigado" : "js.agendamentoDesligado")));
         return atualizar(true);
       }, function (er) {
         el.setAttribute("aria-checked", novo ? "false" : "true"); el.disabled = false;
@@ -594,6 +676,72 @@ const CORPO_JS = String.raw`
       executarLocal(el, T("js.sites.verificando"), function () { return chamar("POST", "/api/sites/navegador"); }, function (r) {
         el.closest(".linha").querySelector("[data-navegador-resultado]").textContent = r.mensagem;
       });
+      return;
+    }
+
+    // ----- parar tudo
+    if (acao === "pausa-abrir") {
+      var dlgP = document.getElementById(el.getAttribute("data-pausado") === "1" ? "dlg-retomar" : "dlg-pausa");
+      var campoP = dlgP.querySelector('input[name="por"]'); campoP.value = nomeLembrado();
+      dlgP.showModal();
+      (campoP.value ? dlgP.querySelector('button[type="submit"]') : campoP).focus();
+      return;
+    }
+    if (acao === "fechar-dialogo") { el.closest("dialog").close(); return; }
+
+    // ----- job travado
+    if (acao === "destravar") {
+      executar(el, T("js.destravando"), function () { return chamar("POST", "/api/fila/destravar"); },
+        function (r) { aviso(r.destravados ? "ok" : "info", r.destravados ? TP("js.destravado", r.destravados) : T("js.nadaTravado")); });
+      return;
+    }
+
+    // ----- carro vendido: a pessoa confirma que JÁ tirou do ar; o painel nunca tira sozinho
+    if (acao === "alerta-resolver") {
+      if (!window.confirm(T("js.alerta.confirmar", { rede: el.getAttribute("data-rede") }))) return;
+      executarLocal(el, T("js.salvando"), function () { return chamar("POST", "/api/estoque/alertas/" + el.getAttribute("data-pub") + "/resolver"); },
+        function () { aviso("ok", T("js.alerta.resolvido")); setTimeout(function () { location.reload(); }, 600); });
+      return;
+    }
+
+    // ----- sugestões de variação
+    if (acao === "outras-sugestoes") {
+      var blocoV = el.closest("[data-variacoes]"); var cartaoV = el.closest("[data-card]");
+      var visto = (blocoV.getAttribute("data-vistas") || "").split(",").filter(Boolean);
+      blocoV.querySelectorAll("[data-sugestao]").forEach(function (b) { var k = b.getAttribute("data-chave"); if (visto.indexOf(k) < 0) visto.push(k); });
+      var semente = Number(blocoV.getAttribute("data-semente") || 1) + 1;
+      el.disabled = true;
+      chamar("GET", "/api/videos/" + cartaoV.getAttribute("data-id") + "/variacoes?semente=" + semente + "&vistas=" + encodeURIComponent(visto.join(","))).then(function (r) {
+        el.disabled = false;
+        blocoV.querySelector("[data-sugestoes]").innerHTML = r.html;
+        blocoV.setAttribute("data-semente", String(semente)); blocoV.setAttribute("data-vistas", visto.join(","));
+      }, function (er) { el.disabled = false; var mv = mensagemDeErro(er); aviso("erro", mv.texto, mv.link); });
+      return;
+    }
+
+    // ----- grade de publicação
+    if (acao === "grade-add-bloco") {
+      var listaB = document.getElementById("grade-blocos");
+      var novoB = document.getElementById("modelo-bloco").content.cloneNode(true);
+      listaB.insertBefore(novoB, listaB.querySelector("[data-sem-blocos]")); renumerarBlocos();
+      var ultimo = listaB.querySelectorAll("[data-bloco]"); ultimo[ultimo.length - 1].querySelector("input").focus();
+      return;
+    }
+    if (acao === "grade-remover-bloco") { el.closest("[data-bloco]").remove(); renumerarBlocos(); return; }
+    if (acao === "grade-add-hora") {
+      var novaH = document.getElementById("modelo-hora").content.cloneNode(true);
+      var campoH = novaH.querySelector("input");
+      el.parentNode.insertBefore(novaH, el); campoH = el.parentNode.querySelectorAll('input[type="time"]'); campoH[campoH.length - 1].focus();
+      return;
+    }
+    if (acao === "grade-remover-hora") { var itemH = el.closest(".hora-item"); var paiH = itemH.parentNode; itemH.remove(); paiH.querySelector("[data-acao='grade-add-hora']").focus(); return; }
+    if (acao === "plano-previsao") { atualizarPrevisao(el); return; }
+    if (acao === "plano-confirmar") {
+      executar(el, T("js.grade.agendando"), function () { return chamar("POST", "/api/plano/confirmar", dadosDaPrevisao()); },
+        function (r) {
+          aviso("ok", TP("js.publicacoesMarcadas", r.agendadas));
+          if (r.erros) aviso("info", T("js.grade.erros"), { href: "/calendario", rotulo: T("aba.calendario") });
+        });
       return;
     }
 
@@ -726,12 +874,20 @@ const CORPO_JS = String.raw`
     }
 
     if (acao === "aprovar") {
-      executar(el, T("js.aprovando"), function () { return chamar("POST", "/api/videos/" + id + "/aprovar"); },
-        function () { aviso("ok", T("js.aprovado")); });
+      // aprovar e agendar é UM trabalho: aprova e já mostra as redes em que passa, com o horário sugerido
+      executar(el, T("js.aprovando"), function () { return chamar("POST", "/api/videos/" + id + "/aprovar-com-sugestao", { modo: "aprovar_e_decidir_depois" }); },
+        function (r) { abrirAprovado(r.html); });
     } else if (acao === "rejeitar") {
       var motivo = el.getAttribute("data-motivo");
       executar(el, T("js.rejeitando"), function () { return chamar("POST", "/api/videos/" + id + "/rejeitar", { motivo: motivo }); },
-        function () { aviso("ok", T("js.rejeitado", { motivo: T("motivo." + motivo) })); });
+        function (r) {
+          // o clique errado não pode contaminar o escritor: 10 segundos para desfazer, e desfazer APAGA a rejeição
+          aviso("ok", T("js.rejeitado", { motivo: T("motivo." + motivo) }), null, { desfazer: { segundos: 10, aoClicar: function (av) {
+            chamar("POST", "/api/rejeicoes/" + r.rejeicao.id + "/desfazer").then(function () {
+              av.remove(); aviso("ok", T("js.rejeicaoDesfeita")); return atualizar(true, String(r.video.id));
+            }, function (er) { av.remove(); var mr = mensagemDeErro(er); aviso("erro", mr.texto, mr.link); });
+          } } });
+        });
     } else if (acao === "refazer") {
       var corpoReq = {};
       card.querySelectorAll('.painel[data-painel="refazer"] [data-grupo]').forEach(function (g) {
@@ -771,6 +927,48 @@ const CORPO_JS = String.raw`
   document.addEventListener("submit", function (ev) {
     var f = ev.target; ev.preventDefault();
     var botao = f.querySelector('button[type="submit"]');
+    if (f.id === "form-pausa" || f.id === "form-retomar") {
+      var nomeS = f.elements["por"].value.trim();
+      if (!nomeS) { aviso("erro", T("js.pausa.nome")); f.elements["por"].focus(); return; }
+      lembrarNome(nomeS); var pausando = f.id === "form-pausa"; botao.disabled = true;
+      var corpoS = { por: nomeS }; if (pausando) { var mo = f.elements["motivo"].value.trim(); if (mo) corpoS.motivo = mo; }
+      chamar("POST", pausando ? "/api/pausa" : "/api/pausa/retomar", corpoS).then(function (r) {
+        botao.disabled = false; f.closest("dialog").close(); pintarPausa(r);
+        if (avisoDaPausa) { avisoDaPausa.remove(); avisoDaPausa = null; }
+        if (pausando) avisoDaPausa = aviso("ok", T("js.pausa.parou"), null, { fixo: true });
+        else aviso("ok", T("js.pausa.retomou") + (r.reagendadas > 0 ? " " + TP("js.pausa.reagendadas", r.reagendadas) : ""), null, { fixo: r.reagendadas > 0 });
+        return atualizar(true);
+      }, function (er) { botao.disabled = false; var ms = mensagemDeErro(er); aviso("erro", ms.texto, ms.link); });
+      return;
+    }
+    if (f.id === "form-aprovado") {
+      var marcadasA = Array.prototype.slice.call(f.querySelectorAll('input[name="rede"]:checked'));
+      if (!marcadasA.length) { aviso("erro", T("js.escolhaRede")); return; }
+      var videoA = Number(f.getAttribute("data-video")); var feitasA = 0; botao.disabled = true;
+      marcadasA.reduce(function (p, c) {
+        return p.then(function () {
+          return chamar("POST", "/api/calendario/agendar", { videoId: videoA, rede: c.value, quando: c.getAttribute("data-quando") }).then(function () { feitasA++; c.checked = false; });
+        });
+      }, Promise.resolve()).then(function () {
+        botao.disabled = false; f.closest("dialog").close(); aviso("ok", TP("js.publicacoesMarcadas", feitasA)); return atualizar(true);
+      }, function (er) {
+        botao.disabled = false;
+        if (feitasA) aviso("ok", TP("js.publicacoesMarcadas", feitasA));
+        var ma = mensagemDeErro(er); aviso("erro", ma.texto, ma.link);
+      });
+      return;
+    }
+    if (f.id === "form-grade") {
+      executarLocal(botao, T("js.salvando"), function () { return chamar("POST", "/api/plano", { grades: coletarGrades() }); },
+        function () { aviso("ok", T("js.grade.salva")); atualizarPrevisao(null); });
+      return;
+    }
+    if (f.id === "form-estoque") {
+      var nLeit = Number(f.elements["leituras"].value);
+      executar(botao, T("js.salvando"), function () { return chamar("POST", "/api/estoque/leituras-para-saida", { leituras: nLeit }); },
+        function () { aviso("ok", T("js.estoqueSalvo")); });
+      return;
+    }
     if (f.id === "form-site") {
       var areaS = f.querySelector("[data-site-resultado]"); var urlS = f.elements["url"].value.trim();
       if (!urlS) return;

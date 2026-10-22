@@ -17,6 +17,8 @@ import { casca, e, icone, nomeDaAba, SEM_CONTADORES, type Contadores } from "./p
 import { escaparHtml } from "./html.js";
 import { chave, grupo, linha } from "./linhas.js";
 import { formatarPreco } from "./dinheiro.js";
+import { contextoTela } from "./contexto-tela.js";
+import { blocoAlertasEstoque } from "./pecas-controle.js";
 import { localeDe, t, tp, type Chave } from "./idioma/index.js";
 import type { ProntidaoRede } from "./publicacao/prontidao.js";
 import {
@@ -320,6 +322,7 @@ export function paginaPublicacoes(videos: VideoComPublicacoes[], contadores: Con
   <div class="cartao-cab" style="margin:0"><div><h2>${e("aba.publicacoes")}</h2>
     <p class="leg">${e("pub.subtitulo")}</p></div>
     <div class="acoes"><button type="button" class="btn outline" data-acao="processar">${e("pub.processar")}</button></div></div>
+  ${blocoAlertasEstoque(contextoTela().alertas)}
   <section class="cartao" data-viva="sempre" data-viva-id="resumo-pub">${resumo}</section>
   ${lista}`;
   return casca({ aba: "publicacoes", titulo: nomeDaAba("publicacoes"), conteudo, contadores, atualizarACada: emAndamento || cont("agendada") > 0 ? 5000 : 15000 });

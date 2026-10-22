@@ -3,7 +3,6 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import {
-  abrirBanco,
   aprovarVideo,
   carregarConfig,
   contarRejeicoesPorMotivo,
@@ -17,6 +16,9 @@ import {
   espacamentoMinutos,
   progressoFila,
   ErroPortao,
+  ErroPausa,
+  lerPlano,
+  leiturasParaSaida,
   listarAjustes,
   listarVideosPorEstado,
   MOTIVOS_REJEICAO,
@@ -51,6 +53,10 @@ import { paginaSites, tratarRotaSites } from "./sites.js";
 import { miniaturaDoVideo, versaoDoArquivo } from "./miniaturas.js";
 import { listarSites } from "@gerador/leitor";
 import { dependenciasPadrao, rodarSeVencido, tratarRotaAcao, type Dependencias } from "./rotas-acoes.js";
+import { sugerirVariacoesDoVideo } from "@gerador/montador";
+import { comContextoTela } from "./contexto-tela.js";
+import { paginaGrade } from "./paginas-grade.js";
+import { lerContextoTela, previsaoEmHtml, tratarRotaControle } from "./rotas-controle.js";
 
 /** Remove a barra final, exceto quando o caminho é só "/". */
 function normalizarCaminho(pathname: string): string {
@@ -174,7 +180,15 @@ function anexarProduto(db: Database.Database, video: Video): VideoComProduto {
 
 /** Cada requisição roda no idioma do cookie (padrão: inglês); t() e os formatadores leem dele. */
 function tratarRequisicao(req: IncomingMessage, res: ServerResponse, deps: Dependencias): Promise<void> {
-  return comIdioma(idiomaDoCookie(req.headers.cookie), () => tratarRequisicaoNoIdioma(req, res, deps));
+  return comIdioma(idiomaDoCookie(req.headers.cookie), () => {
+    // Só as telas (GET de página) levam a pausa e os alertas na casca; arquivo e API não precisam ler isso.
+    const ehTela = (req.method ?? "GET") === "GET" && !(req.url ?? "").startsWith("/api/") && !/\.(css|js|mp4|jpg)(\?|$)/.test(req.url ?? "");
+    if (!ehTela) return tratarRequisicaoNoIdioma(req, res, deps);
+    const db = deps.abrirBanco();
+    let contexto;
+    try { contexto = lerContextoTela(db); } finally { db.close(); }
+    return comContextoTela(contexto, () => tratarRequisicaoNoIdioma(req, res, deps));
+  });
 }
 
 async function tratarRequisicaoNoIdioma(req: IncomingMessage, res: ServerResponse, deps: Dependencias): Promise<void> {
@@ -220,6 +234,7 @@ async function tratarRequisicaoNoIdioma(req: IncomingMessage, res: ServerRespons
         for (const b of brutos) {
           videos.push({
             ...anexarProduto(db, b),
+            variacoes: b.estado === "aguardando_aprovacao" || b.estado === "erro" ? sugerirVariacoesDoVideo(db, b.id, 3, 1) : undefined,
             bloqueadoPorRefazer: b.estado !== "rascunho" && b.estado !== "renderizando" && emFeitura.has(b.produtoId),
             redes: await dadosRedes(db, b, deps, ia),
           });
@@ -360,6 +375,18 @@ async function tratarRequisicaoNoIdioma(req: IncomingMessage, res: ServerRespons
       return;
     }
 
+    if (caminho === "/grade" && metodo === "GET") {
+      const db = deps.abrirBanco();
+      try {
+        const plano = lerPlano(db);
+        const previsao = await previsaoEmHtml(db, deps, plano);
+        responderHtml(res, 200, paginaGrade(plano, previsao.html, contadoresDe(db)));
+      } finally {
+        db.close();
+      }
+      return;
+    }
+
     if (caminho === "/sites" && metodo === "GET") {
       const db = deps.abrirBanco();
       try {
@@ -382,7 +409,7 @@ async function tratarRequisicaoNoIdioma(req: IncomingMessage, res: ServerRespons
         responderHtml(
           res,
           200,
-          paginaAjustes(listarAjustes(db), contarRejeicoesPorMotivo(db), dadosIA(listarAjustes(db), deps.envIA ?? process.env), contadoresDe(db)),
+          paginaAjustes(listarAjustes(db), contarRejeicoesPorMotivo(db), dadosIA(listarAjustes(db), deps.envIA ?? process.env), contadoresDe(db), leiturasParaSaida(db)),
         );
       } finally {
         db.close();
@@ -397,7 +424,7 @@ async function tratarRequisicaoNoIdioma(req: IncomingMessage, res: ServerRespons
         responderJson(res, 404, { erro: t("erro.naoEncontrado") });
         return;
       }
-      const db = abrirBanco();
+      const db = deps.abrirBanco();
       const video = obterVideo(db, id);
       db.close();
       if (!video?.caminhoMp4 || !existsSync(video.caminhoMp4)) {
@@ -437,7 +464,7 @@ async function tratarRequisicaoNoIdioma(req: IncomingMessage, res: ServerRespons
 
     // --- API: status (mantido da Etapa 0) ---
     if (caminho === "/api/status" && metodo === "GET") {
-      const db = abrirBanco();
+      const db = deps.abrirBanco();
       const contagens = contarTabelas(db);
       db.close();
       responderJson(res, 200, { etapa: "3", contagens });
@@ -446,7 +473,7 @@ async function tratarRequisicaoNoIdioma(req: IncomingMessage, res: ServerRespons
 
     // --- API: fila ---
     if (caminho === "/api/fila" && metodo === "GET") {
-      const db = abrirBanco();
+      const db = deps.abrirBanco();
       const videos = listarVideosPorEstado(db, [
         "rascunho",
         "renderizando",
@@ -460,7 +487,7 @@ async function tratarRequisicaoNoIdioma(req: IncomingMessage, res: ServerRespons
 
     // --- API: histórico ---
     if (caminho === "/api/historico" && metodo === "GET") {
-      const db = abrirBanco();
+      const db = deps.abrirBanco();
       const videos = listarVideosPorEstado(db, ["aprovado", "publicado"]).map((v) => anexarProduto(db, v));
       db.close();
       responderJson(res, 200, { videos });
@@ -469,7 +496,7 @@ async function tratarRequisicaoNoIdioma(req: IncomingMessage, res: ServerRespons
 
     // --- API: rejeições agrupadas por motivo ---
     if (caminho === "/api/rejeicoes/por-motivo" && metodo === "GET") {
-      const db = abrirBanco();
+      const db = deps.abrirBanco();
       const contagens = contarRejeicoesPorMotivo(db);
       db.close();
       responderJson(res, 200, { contagens, motivos: MOTIVOS_REJEICAO });
@@ -479,7 +506,7 @@ async function tratarRequisicaoNoIdioma(req: IncomingMessage, res: ServerRespons
     // --- API: aprovar ---
     const idAprovar = extrairIdDoCaminho(caminho, "/api/videos/", "/aprovar");
     if (idAprovar !== undefined && metodo === "POST") {
-      const db = abrirBanco();
+      const db = deps.abrirBanco();
       try {
         const video = aprovarVideo(db, idAprovar);
         responderJson(res, 200, { video });
@@ -498,7 +525,7 @@ async function tratarRequisicaoNoIdioma(req: IncomingMessage, res: ServerRespons
     // --- API: rejeitar (motivo obrigatório, é botão — ver REGRAS-DE-NEGOCIO.md) ---
     const idRejeitar = extrairIdDoCaminho(caminho, "/api/videos/", "/rejeitar");
     if (idRejeitar !== undefined && metodo === "POST") {
-      const db = abrirBanco();
+      const db = deps.abrirBanco();
       try {
         const corpoBruto = (await lerCorpoJson(req)) as { motivo?: unknown; observacao?: unknown };
         const resultado = rejeitarVideo(db, {
@@ -521,7 +548,7 @@ async function tratarRequisicaoNoIdioma(req: IncomingMessage, res: ServerRespons
 
     // --- API: ajustes ---
     if (caminho === "/api/ajustes" && metodo === "GET") {
-      const db = abrirBanco();
+      const db = deps.abrirBanco();
       const ajustes = listarAjustes(db);
       db.close();
       responderJson(res, 200, { ajustes });
@@ -529,7 +556,7 @@ async function tratarRequisicaoNoIdioma(req: IncomingMessage, res: ServerRespons
     }
 
     if (caminho === "/api/ajustes" && metodo === "POST") {
-      const db = abrirBanco();
+      const db = deps.abrirBanco();
       try {
         const corpoBruto = (await lerCorpoJson(req)) as { chave?: unknown; valor?: unknown };
         if (typeof corpoBruto.chave !== "string" || corpoBruto.chave.trim().length === 0) {
@@ -552,6 +579,7 @@ async function tratarRequisicaoNoIdioma(req: IncomingMessage, res: ServerRespons
       return;
     }
 
+    if (caminho.startsWith("/api/") && (await tratarRotaControle(caminho, metodo, req, res, deps))) return;
     if (caminho.startsWith("/api/sites") && (await tratarRotaSites(caminho, metodo, req, res, deps))) return;
     if (caminho.startsWith("/api/ia/") && (await tratarRotaIA(caminho, metodo, req, res, deps))) return;
 
@@ -565,6 +593,11 @@ async function tratarRequisicaoNoIdioma(req: IncomingMessage, res: ServerRespons
   } catch (erro) {
     if (erro instanceof ErroPortao) {
       responderJson(res, 400, { erro: traduzirErro(erro.message) });
+      return;
+    }
+    if (erro instanceof ErroPausa) {
+      // ErroPausa não herda de ErroPortao: sem este desvio viraria 500.
+      responderJson(res, 400, { erro: t("pausa.erro.semNome") });
       return;
     }
     console.error(erro);

@@ -11,6 +11,7 @@ import {
   LIMITE_TITULO_TEXTO,
   INTERVALO_MINIMO_MIN,
   type Agendamento,
+  type CardapioCompleto,
   type ItemEstoque,
   type OpcaoCardapio,
   type ProgressoFila,
@@ -18,6 +19,9 @@ import {
   type Rede,
 } from "@gerador/core";
 import { secaoIA, type DadosIA } from "./ia.js";
+import { contextoTela } from "./contexto-tela.js";
+import { blocoVariacoes, botaoPausa, dialogosDeControle, escolhaAtual, faixaAlertas, faixaPausa } from "./pecas-controle.js";
+import { jobTravado, TIMEOUT_JOB_MS } from "./limites.js";
 import type { Site } from "@gerador/leitor";
 import { traduzirErro } from "./erros.js";
 import { chave, grupo, linha, peDoGrupo } from "./linhas.js";
@@ -28,7 +32,7 @@ import { blocoRedes, partesRedes, type DadosRedes } from "./paginas-redes.js";
 import { IDIOMAS, NOME_NATIVO, idiomaAtual, localeDe, rotuloDe, t, tOpcional, tp, type Chave } from "./idioma/index.js";
 
 export type Aba =
-  | "fila" | "calendario" | "publicacoes" | "estoque" | "historico" | "contas" | "prontidao" | "agendamento" | "sites" | "configuracoes";
+  | "fila" | "calendario" | "publicacoes" | "estoque" | "historico" | "contas" | "prontidao" | "grade" | "agendamento" | "sites" | "configuracoes";
 
 /** Números que a barra lateral mostra. Vêm do banco a cada tela e a cada atualização. */
 export interface Contadores {
@@ -59,6 +63,7 @@ const ICONES: Record<string, string> = {
   historico: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
   contas: '<circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4-6 8-6s7 2 8 6"/>',
   prontidao: '<circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 5-6"/>',
+  grade: '<rect x="3" y="4" width="18" height="17" rx="3"/><path d="M3 9h18M9 9v12M15 9v12M3 15h18"/>',
   agendamento: '<path d="M20 12a8 8 0 1 1-3-6.2M20 4v5h-5"/>',
   sites: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/>',
   ajustes: '<path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/>',
@@ -99,6 +104,7 @@ const GRUPOS_NAV: { titulo: Chave; itens: ItemNav[] }[] = [
     itens: [
       { chave: "contas", href: "/contas", icone: "contas" },
       { chave: "prontidao", href: "/prontidao", icone: "prontidao" },
+      { chave: "grade", href: "/grade", icone: "grade" },
     ],
   },
   {
@@ -168,6 +174,7 @@ const SCRIPT_ANTES_DA_PINTURA =
   'try{var p=localStorage.getItem("painel-tema");if(p==="escuro"||p==="dark"||((p==="sistema"||p==="system")&&window.matchMedia("(prefers-color-scheme: dark)").matches))document.body.setAttribute("data-ds-dark-theme","");if(localStorage.getItem("painel-lateral")==="recolhida")document.body.setAttribute("data-lateral","recolhida")}catch(e){}';
 
 export function casca(o: OpcoesCasca): string {
+  const ctx = contextoTela();
   const grupos = GRUPOS_NAV.map(
     (g) => `<div class="nav-grupo"><span class="nav-titulo">${e(g.titulo)}</span>${g.itens.map((a) => itemNav(a, o.aba, o.contadores)).join("")}</div>`,
   ).join("");
@@ -203,13 +210,17 @@ export function casca(o: OpcoesCasca): string {
     <header class="barra-topo">
       <button type="button" class="btn ghost icone-btn so-estreita" data-acao="gaveta" id="abrir-gaveta" aria-expanded="false" aria-controls="lateral" aria-label="${e("app.abrirMenu")}">${icone("menu")}</button>
       <span class="marca so-estreita">${nomeApp}</span>
+      ${botaoPausa(ctx.pausa)}
       <button type="button" class="btn ghost icone-btn" id="alternar-tema" data-acao="tema" aria-label="${e("tema.paraEscuro")}" title="${e("tema.paraEscuro")}" data-rotulo-escuro="${e("tema.paraEscuro")}" data-rotulo-claro="${e("tema.paraClaro")}">${icone("lua", "icone icone-lua")}${icone("sol", "icone icone-sol")}</button>
     </header>
+    ${faixaPausa(ctx.pausa)}
+    ${faixaAlertas(ctx.alertas)}
     <main id="conteudo" tabindex="-1" data-aba="${o.aba}" data-titulo="${escaparHtml(o.titulo)}" data-contadores="${escaparHtml(JSON.stringify(o.contadores))}" data-poll="${o.atualizarACada}">
 ${o.conteudo}
 </main>
   </div>
 </div>
+${dialogosDeControle()}
 <div class="avisos" id="avisos" aria-live="polite"></div>
 <script src="/painel.js" defer></script>
 </body>
@@ -234,6 +245,8 @@ export interface VideoParaCartao {
   bloqueadoPorRefazer?: boolean;
   /** Escolhas do cardápio que o vídeo guarda (para o painel de refazer marcar a atual). */
   escolhas?: Record<string, string | null | undefined>;
+  /** Sugestões de variação para o painel de refazer (do montador); ausente = sem bloco de sugestões. */
+  variacoes?: CardapioCompleto[];
   /** Validação, legenda e prévia por rede (só vídeos com MP4 pronto). */
   redes?: DadosRedes | null;
   /** Motivos (chaves) de vídeos anteriores do mesmo carro que foram rejeitados. */
@@ -329,6 +342,7 @@ function painelRefazer(v: VideoParaCartao): string {
       </div>`
       : "";
   return `<div class="painel" data-painel="refazer" hidden>
+    ${v.variacoes ? blocoVariacoes(v.variacoes, escolhaAtual({ modelo: v.escolhas?.["modelo"], cor: v.escolhas?.["cor"], enquadramento: v.escolhas?.["enquadramento"] })) : ""}
     ${Object.entries(listarCardapio())
       .map(([lista, opcoesDoGrupo]) => {
         const campo = CAMPO_DO_CARDAPIO[lista] ?? lista;
@@ -419,6 +433,9 @@ function desabilitar(html: string): string {
 /** Estado de trabalho do cartão: mostra que está sendo feito, com progresso, e trava as ações (disabled de verdade). */
 function blocoTrabalho(v: VideoParaCartao, progresso?: ProgressoFila): string {
   const exec = progresso?.emExecucao;
+  if (exec && exec.videoId === v.id && jobTravado(exec)) {
+    return `<p class="leg">${escaparHtml(t("fila.travadoCartao", { tempo: formatarDuracao(exec.haSegundos) }))}</p>`;
+  }
   if (exec && exec.videoId === v.id) {
     const pct = Math.min(95, Math.round((exec.haSegundos / Math.max(1, progresso!.segundosPorVideo)) * 100));
     return `<div class="barra" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}" aria-label="${e("progresso.andamento")}"><span style="width:${pct}%"></span></div>
@@ -459,25 +476,44 @@ function cartaoFila(v: VideoParaCartao, progresso?: ProgressoFila): string {
 
 export function blocoProgresso(p: ProgressoFila): string {
   const exec = p.emExecucao;
+  const travado = jobTravado(exec);
   const faltam = p.pendentes + (exec ? 1 : 0);
-  const pct = exec ? Math.min(95, Math.round((exec.haSegundos / Math.max(1, p.segundosPorVideo)) * 100)) : 0;
+  const pct = exec && !travado ? Math.min(95, Math.round((exec.haSegundos / Math.max(1, p.segundosPorVideo)) * 100)) : 0;
   const origem =
     p.origemEstimativa === "historico"
       ? t("progresso.origemHistorico", { n: p.amostras })
       : t("progresso.origemPadrao");
-  const agora = exec
-    ? t("progresso.renderizando", { id: `<strong>#${exec.videoId}</strong>`, tempo: escaparHtml(formatarDuracao(exec.haSegundos)) })
-    : faltam > 0
-      ? e("progresso.nenhumAgora")
-      : e("progresso.vazia");
+  const agora = travado
+    ? ""
+    : exec
+      ? t("progresso.renderizando", { id: `<strong>#${exec.videoId}</strong>`, tempo: escaparHtml(formatarDuracao(exec.haSegundos)) })
+      : faltam > 0
+        ? e("progresso.nenhumAgora")
+        : e("progresso.vazia");
+  // A estimativa nunca contradiz o que está na tela: travado = não dá para estimar; rodando além da média = "mais um pouco".
+  const estimativa = faltam === 0
+    ? "—"
+    : travado
+      ? "—"
+      : p.estimativaRestanteSegundos <= 0
+        ? escaparHtml(t("progresso.quase"))
+        : escaparHtml(formatarDuracao(p.estimativaRestanteSegundos));
+  const aviso = travado && exec
+    ? `<div class="aviso erro" role="alert" data-travado>
+        <p><strong>${e("progresso.travado")}</strong> ${escaparHtml(t("progresso.travadoTexto", { id: `#${exec.videoId}`, tempo: formatarDuracao(exec.haSegundos), limite: formatarDuracao(TIMEOUT_JOB_MS / 1000) }))}</p>
+        <p class="leg">${e("progresso.travadoAjuda")}</p>
+        <div class="acoes"><button type="button" class="btn primary" data-acao="destravar">${e("progresso.destravar")}</button></div>
+      </div>`
+    : "";
   return `<div class="progresso-linha">
       <div class="item"><span class="num">${faltam}</span><span class="leg">${e("progresso.naFila")}</span></div>
       <div class="item"><span class="num">${p.pendentes}</span><span class="leg">${e("progresso.esperando")}</span></div>
-      <div class="item"><span class="num">${faltam > 0 ? escaparHtml(formatarDuracao(p.estimativaRestanteSegundos)) : "—"}</span><span class="leg">${e("progresso.paraTerminar")}</span></div>
+      <div class="item"><span class="num">${estimativa}</span><span class="leg">${e("progresso.paraTerminar")}</span></div>
     </div>
-    <p>${agora}</p>
-    ${exec ? `<div class="barra" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}" aria-label="${e("progresso.andamento")}"><span style="width:${pct}%"></span></div>` : ""}
-    ${faltam > 0 ? `<p class="leg">${e("progresso.tempoEstimado", { origem })}</p>` : ""}`;
+    ${aviso}
+    ${agora ? `<p>${agora}</p>` : ""}
+    ${exec && !travado ? `<div class="barra" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}" aria-label="${e("progresso.andamento")}"><span style="width:${pct}%"></span></div>` : ""}
+    ${faltam > 0 && !travado ? `<p class="leg">${e("progresso.tempoEstimado", { origem })}</p>` : ""}`;
 }
 
 export function paginaFila(videos: VideoParaCartao[], progresso: ProgressoFila, contadores: Contadores = SEM_CONTADORES): string {
@@ -532,7 +568,7 @@ export function paginaEstoque(itens: ItemEstoque[], contadores: Contadores = SEM
           <td>${p?.km !== undefined ? escaparHtml(formatarKm(p.km)) : "—"}</td>
           <td>${i.quantidadeFotos}</td>
           <td>${escaparHtml(formatarBrasilia(i.lidoEm))}</td>
-          <td>${estadoVideo}${i.totalVideos > 1 ? `<div class="leg">${escaparHtml(tp("estoque.videosFeitos", i.totalVideos))}</div>` : ""}</td>
+          <td>${estadoVideo}${i.saiuDoEstoqueEm ? ` <span class="selo erro" title="${escaparHtml(formatarBrasilia(i.saiuDoEstoqueEm))}">${e("estoque.saiu")}</span>` : ""}${i.totalVideos > 1 ? `<div class="leg">${escaparHtml(tp("estoque.videosFeitos", i.totalVideos))}</div>` : ""}</td>
           <td><div class="acoes">${botoes}</div></td>
         </tr>`;
       })
@@ -714,6 +750,7 @@ export function paginaAjustes(
   contagens: Record<string, number>,
   ia: DadosIA,
   contadores: Contadores = SEM_CONTADORES,
+  leituras = 3,
 ): string {
   const idioma = ajustes.find((a) => a.chave === "idioma_anuncio")?.valor ?? "pt-BR";
   const lista: { valor: string; texto: string }[] = IDIOMAS_ANUNCIO.map((v) => ({ valor: v, texto: t(`ajustes.idiomaAnuncio.${v}` as Chave) }));
@@ -764,6 +801,15 @@ export function paginaAjustes(
       campo: `<input class="campo" id="aj-url" name="urlPublica" type="url" placeholder="https://videos.exemplo.com.br" value="${escaparHtml(urlPublica)}" data-inicial="${escaparHtml(urlPublica)}" />`,
     }),
   ], { extra: peDoGrupo() })}
+  </form>
+
+  <form id="form-estoque" data-config-form>
+  ${grupo(e("ajustes.estoque.titulo"), [
+    linha({
+      rotulo: t("ajustes.estoque.leituras"), para: "aj-leituras", ajuda: t("ajustes.estoque.leiturasAjuda"), desfazer: true,
+      campo: `<input class="campo" id="aj-leituras" name="leituras" type="number" min="1" max="50" step="1" value="${leituras}" data-inicial="${leituras}" />`,
+    }),
+  ], { id: "ajustes-estoque", extra: peDoGrupo() })}
   </form>
 
   ${grupo(e("ajustes.rej.titulo"), [

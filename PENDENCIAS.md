@@ -34,21 +34,21 @@ ou no terminal. Nada vira ✅ por relatório de subagente.
 | B4 | "Ad language" lê como "Add language" — trocar o nome | ✅ |
 | B5 | Preço `R$22,500.00` em inglês lê como vinte e dois reais | ✅ |
 | B6 | Jargão: "espaçamento mínimo" e "endereço público" em português de gente | ✅ |
-| B7 | 28 chaves sem tradução em romeno e russo | ⬜ |
+| B7 | 28 chaves sem tradução em romeno e russo | ✅ |
 
 ## C. Painel — comportamento
 
 | # | | |
 |---|---|---|
-| C1 | Refazer mostra o cartão trabalhando; segundo clique impossível | ⬜ |
-| C2 | Atualizar só o cartão, sem recarregar a página nem pular pro topo | ⬜ |
+| C1 | Refazer mostra o cartão trabalhando; segundo clique impossível | ✅ |
+| C2 | Atualizar só o cartão, sem recarregar a página nem pular pro topo | ✅ |
 | C3 | Chave que desliza no lugar do botão "Ligar" + etiqueta | ✅ |
-| C4 | Erro vermelho de servidor vira "reconectando" discreto | ⬜ |
+| C4 | Erro vermelho de servidor vira "reconectando" discreto | ✅ |
 | C5 | Miniatura do vídeo no calendário ao passar o mouse | ✅ |
-| C6 | Histórico com propósito: o que SAIU, com link do post | ⬜ |
-| C7 | Desfazer no rejeitar (auditoria A-3) | ⬜ |
-| C8 | Painel mente que está renderizando job morto (auditoria A-1) | ⬜ |
-| C9 | "0s para terminar" junto de "renderizando" (auditoria A-2) | ⬜ |
+| C6 | Histórico com propósito: o que SAIU, com link do post | ✅ |
+| C7 | Desfazer no rejeitar (auditoria A-3) | ✅ |
+| C8 | Painel mente que está renderizando job morto (auditoria A-1) | ✅ |
+| C9 | "0s para terminar" junto de "renderizando" (auditoria A-2) | ✅ |
 
 ## D. Vídeo
 
@@ -58,7 +58,7 @@ ou no terminal. Nada vira ✅ por relatório de subagente.
 | D2 | Tags entrando uma de cada vez, sem tapar o carro | ✅ |
 | D3 | Quatro modelos com personalidade diferente | ✅ |
 | D4 | Cor escolhível + cor automática da foto | ✅ |
-| D5 | Regenerar oferecendo variações | 🔧 idem |
+| D5 | Regenerar oferecendo variações | ✅ |
 | D6 | Modelo escolhido chega de verdade no vídeo renderizado | ✅ |
 
 ## E. Redes sociais
@@ -70,8 +70,8 @@ ou no terminal. Nada vira ✅ por relatório de subagente.
 | E3 | Fila de publicação, idempotência, espera crescente, limites | ✅ motor |
 | E4 | Validação por rede antes de publicar | ✅ motor |
 | E5 | Prontidão: o que falta em cada rede | ✅ motor |
-| E6 | Grade recorrente (dias e horários fixos) | ✅ motor · ⬜ tela |
-| E7 | Aprovar emenda no agendar | ✅ motor · ⬜ tela |
+| E6 | Grade recorrente (dias e horários fixos) | ✅ |
+| E7 | Aprovar emenda no agendar | ✅ |
 | E8 | Redes como conector que se ativa e conecta | ⬜ |
 
 ## F. Leitura do site
@@ -96,9 +96,9 @@ ou no terminal. Nada vira ✅ por relatório de subagente.
 
 | # | | |
 |---|---|---|
-| H1 | Carro vendido sai do ar | ✅ motor · ⬜ tela |
+| H1 | Carro vendido sai do ar | ✅ |
 | H2 | Reler o preço imediatamente antes de publicar | ✅ motor · ⬜ ligar no publicador |
-| H3 | Parar tudo | ✅ motor · ⬜ tela |
+| H3 | Parar tudo | ✅ |
 | H4 | GitHub público, com commit a cada etapa | ✅ |
 | H5 | Nada de chave, dado do cliente ou informação pessoal no repositório | ✅ |
 

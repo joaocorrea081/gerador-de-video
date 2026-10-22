@@ -120,7 +120,8 @@ main[data-aba="publicacoes"] > .cartao[data-viva] { grid-column: 1 / -1; }
 .nav-rotulo { flex: 1; text-align: left; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .nav-contagens { display: flex; gap: 4px; }
 .barra-topo { display: flex; align-items: center; gap: 8px; padding: 10px clamp(20px, 3vw, 56px) 0; }
-.barra-topo #alternar-tema { margin-left: auto; color: var(--dsw-alias-label-secondary); }
+.barra-topo #pausa-botao { margin-left: auto; }
+.barra-topo #alternar-tema { color: var(--dsw-alias-label-secondary); }
 .barra-topo #alternar-tema:hover { color: var(--dsw-alias-label-primary); }
 .so-estreita { display: none; }
 .icone-sol { display: none; }
@@ -529,6 +530,62 @@ main[data-aba="agendamento"], main[data-aba="configuracoes"], main[data-aba="sit
   .fila-midia { position: static; }
   
   .cartao { padding: 16px; }
+}
+
+/* ---------- parar tudo: o freio de mão, sempre à vista ---------- */
+.btn.parar { background: var(--dsw-alias-state-error-primary); color: var(--dsw-alias-label-primary-foreground); font-weight: 600; }
+.btn.parar:hover:not(:disabled) { opacity: 0.88; }
+.btn.parar.retomar { background: var(--dsw-alias-button-primary-fill); animation: pulsar 1600ms ease-in-out infinite alternate; }
+@keyframes pulsar { from { opacity: 1; } to { opacity: 0.78; } }
+.faixa { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 14px; margin: 8px clamp(20px, 3vw, 56px) 0; padding: 12px 16px; border-radius: var(--dsw-radius-lg); font-size: 14px; line-height: 22px; }
+.faixa[hidden] { display: none; }
+.faixa-titulo { font-weight: 600; }
+.faixa-pausa { background: var(--dsw-alias-state-error-primary); color: var(--dsw-alias-label-primary-foreground); }
+.faixa-pausa .faixa-ajuda { flex-basis: 100%; opacity: 0.92; font-size: 13px; }
+.faixa-alerta { background: color-mix(in srgb, var(--dsw-alias-state-error-primary) 12%, transparent); box-shadow: inset 0 0 0 0.5px var(--dsw-alias-state-error-primary); justify-content: space-between; }
+.faixa-alerta .faixa-titulo { color: var(--dsw-alias-state-error-primary); }
+@media (max-width: 899px) { .faixa { margin: 8px 12px 0; } .barra-topo #pausa-botao .parar-texto { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; } .barra-topo #pausa-botao { padding: 0 10px; } }
+
+/* ---------- quadros de diálogo (parar, retomar, aprovado) ---------- */
+.dialogo { padding: 0; border: none; border-radius: var(--dsw-radius-xl); background-color: var(--dsw-alias-bg-layer-3); color: var(--dsw-alias-label-primary); box-shadow: var(--dsw-elevation-prominent); width: min(560px, calc(100% - 32px)); max-height: calc(100vh - 32px); overflow: auto; }
+.dialogo::backdrop { background: color-mix(in srgb, var(--dsw-static-neutral-bluish-1000) 45%, transparent); }
+.dialogo-corpo { display: flex; flex-direction: column; gap: 16px; padding: 24px; }
+.dialogo-corpo form, form.dialogo-corpo { display: flex; flex-direction: column; gap: 16px; }
+#form-aprovado { display: flex; flex-direction: column; gap: 16px; }
+.dialogo .campo { max-width: none; }
+
+/* ---------- carro vendido ---------- */
+.alerta-bloco { grid-column: 1 / -1; padding: 16px 20px; border-radius: var(--dsw-radius-lg); box-shadow: inset 0 0 0 0.5px var(--dsw-alias-state-error-primary); background: color-mix(in srgb, var(--dsw-alias-state-error-primary) 6%, transparent); }
+.alerta-bloco > h3 { color: var(--dsw-alias-state-error-primary); }
+
+/* ---------- sugestões de variação (painel de refazer) ---------- */
+.sugestoes { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px; }
+.btn.sugestao { height: auto; flex-direction: column; align-items: stretch; justify-content: flex-start; gap: 2px; padding: 10px 12px; text-align: left; white-space: normal; font-weight: 400; }
+.sug-linha { display: block; font-size: 12px; line-height: 18px; color: var(--dsw-alias-label-secondary); }
+.sug-linha.mudou { color: var(--dsw-alias-label-primary); font-weight: 600; }
+.sug-rotulo { color: var(--dsw-alias-label-caption); font-weight: 400; }
+.sug-rotulo::after { content: ": "; }
+
+/* ---------- grade de publicação ---------- */
+.bloco-grade { display: flex; flex-direction: column; gap: 16px; min-width: 0; margin: 0 0 12px; padding: 16px; border: 0.5px solid var(--dsw-alias-border-l3); border-radius: var(--dsw-radius-lg); }
+.bloco-grade legend { padding: 0 6px; font-size: 13px; font-weight: 600; }
+.pilula { position: relative; display: inline-flex; align-items: center; height: 36px; padding: 0 14px; border: 0.5px solid var(--dsw-alias-border-l3); border-radius: var(--dsw-radius-md); cursor: pointer; transition: background-color 180ms ease; }
+.pilula input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+.pilula:hover { background: var(--dsw-alias-interactive-bg-hover); }
+.pilula:has(input:checked) { background: var(--dsw-alias-interactive-bg-active); border-color: var(--dsw-alias-border-l4); font-weight: 600; }
+.pilula:has(input:focus-visible) { outline: var(--dsw-focus-ring-width) solid var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary)); outline-offset: 2px; }
+.horas { align-items: center; }
+.hora-item { display: inline-flex; align-items: center; gap: 2px; }
+.hora-campo { width: 120px; }
+.previsao-itens { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 24px; }
+.previsao-linha { gap: 4px; }
+main[data-aba="grade"] { max-width: 1500px; }
+@media (min-width: 1200px) {
+  .grade-pagina { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-areas: "titulo titulo" "ligar previsao" "blocos previsao"; gap: 32px 56px; align-items: start; }
+  .grade-pagina > .g-titulo { grid-area: titulo; }
+  .grade-pagina > .g-ligar { grid-area: ligar; }
+  .grade-pagina > .g-blocos { grid-area: blocos; }
+  .grade-pagina > .g-previsao { grid-area: previsao; }
 }
 
 @media (prefers-reduced-motion: reduce) {
