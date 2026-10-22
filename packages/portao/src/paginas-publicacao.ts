@@ -15,7 +15,8 @@ import {
 } from "@gerador/core";
 import { casca, e, icone, nomeDaAba, SEM_CONTADORES, type Contadores } from "./paginas.js";
 import { escaparHtml } from "./html.js";
-import { grupo, linha } from "./linhas.js";
+import { chave, grupo, linha } from "./linhas.js";
+import { formatarPreco } from "./dinheiro.js";
 import { localeDe, t, tp, type Chave } from "./idioma/index.js";
 import type { ProntidaoRede } from "./publicacao/prontidao.js";
 import {
@@ -53,6 +54,15 @@ export interface EntradaCalendario {
   espacamentoMin: number;
   videoSelecionado: number | null;
   contadores?: Contadores;
+  /** Por vídeo: o que o cartão de passar o mouse mostra (nome do carro, preço, versão do arquivo para a miniatura). */
+  fichas?: Record<number, FichaDoCalendario>;
+}
+
+export interface FichaDoCalendario {
+  nome: string;
+  preco?: number | undefined;
+  moeda?: string | undefined;
+  versao?: string | undefined;
 }
 
 /** Primeiro e último dia (inclusive) que a grade mostra. */
@@ -72,15 +82,23 @@ export function parametrosCalendario(visao: string | null, data: string | null, 
   return { visao: visao === "semana" ? "semana" : "mes", ancora: ymdValido(data) ? data : hoje };
 }
 
-function chip(p: PublicacaoNoCalendario, semana: boolean): string {
+function chip(p: PublicacaoNoCalendario, semana: boolean, ficha?: FichaDoCalendario): string {
   const tom = p.estado === "publicada" ? "ok" : p.estado === "falhou" ? "erro" : p.estado === "publicando" || p.estado === "verificar" ? "espera" : p.estado === "cancelada" ? "apagada" : "";
   const titulo = p.videoTitulo ?? t("pub.videoN", { id: p.videoId });
-  return `<button type="button" class="chip ${tom}" data-acao="abrir-pub" data-pub="${p.id}" aria-expanded="false" aria-controls="pub-${p.id}" title="${escaparHtml(`${NOMES_REDE[p.rede]} · ${rotuloEstadoPub(p.estado)} · ${titulo}`)}">
-    <span class="chip-hora">${horaBrasilia(p.agendadaPara)}</span>
+  const arte = ficha?.versao ? `/api/videos/${p.videoId}/miniatura.jpg?v=${encodeURIComponent(ficha.versao)}` : null;
+  const mini = arte ? `<img class="chip-mini" src="${arte}" alt="" width="18" height="32" loading="lazy" decoding="async" onerror="this.hidden=true" />` : "";
+  const preco = ficha?.preco !== undefined ? formatarPreco(ficha.preco, ficha.moeda) : t("cal.cartaoSemPreco");
+  const info = ficha && arte
+    ? `<span class="chip-info" hidden><img class="cartao-arte" src="${arte}" alt="" width="180" height="320" onerror="this.hidden=true" />
+        <strong class="cartao-nome">${escaparHtml(ficha.nome)}</strong><span class="cartao-preco">${escaparHtml(preco)}</span>
+        <span class="cartao-quando">${escaparHtml(t("cal.cartaoQuando", { rede: NOMES_REDE[p.rede], quando: formatarBrasilia(p.agendadaPara) }))}</span></span>`
+    : "";
+  return `<span class="chip-wrap"><button type="button" class="chip ${tom}"${ficha ? ` data-cartao="${p.id}"` : ""} data-acao="abrir-pub" data-pub="${p.id}" aria-expanded="false" aria-controls="pub-${p.id}" title="${escaparHtml(`${NOMES_REDE[p.rede]} · ${rotuloEstadoPub(p.estado)} · ${titulo}`)}">
+    ${mini}<span class="chip-texto"><span class="chip-hora">${horaBrasilia(p.agendadaPara)}</span>
     <span class="chip-rede">${NOMES_REDE[p.rede]}</span>
     ${semana ? `<span class="chip-titulo">${escaparHtml(titulo)}</span>` : ""}
-    <span class="chip-estado">${escaparHtml(rotuloEstadoPub(p.estado))}</span>
-  </button>`;
+    <span class="chip-estado">${escaparHtml(rotuloEstadoPub(p.estado))}</span></span>
+  </button>${info}</span>`;
 }
 
 function celulaDia(ymd: string, itens: PublicacaoNoCalendario[], ent: EntradaCalendario, semana: boolean): string {
@@ -90,7 +108,7 @@ function celulaDia(ymd: string, itens: PublicacaoNoCalendario[], ent: EntradaCal
   return `<div class="${classes}" role="group" aria-label="${escaparHtml(`${nome}, ${diaMes(ymd)}, ${tp("cal.publicacoes", itens.length)}`)}" data-dia-celula="${ymd}">
     <div class="dia-cab"><span class="dia-n">${semana ? `${nome} ` : ""}${ymd.slice(8, 10).replace(/^0/, "")}${semana ? `/${ymd.slice(5, 7)}` : ""}</span>
       <button type="button" class="btn ghost pequeno dia-mais" data-acao="marcar-dia" data-dia="${ymd}" aria-label="${e("cal.marcarEm", { dia: diaMes(ymd) })}"${passado ? " disabled" : ""}>+</button></div>
-    <div class="dia-itens">${itens.map((p) => chip(p, semana)).join("")}</div>
+    <div class="dia-itens">${itens.map((p) => chip(p, semana, ent.fichas?.[p.videoId])).join("")}</div>
   </div>`;
 }
 
@@ -162,7 +180,7 @@ function formularioMarcar(ent: EntradaCalendario): string {
           <label class="opcao-rede"><input type="radio" name="visibilidade" value="privada" /> <span>${e("cal.vis.privadaRotulo")}</span></label>
         </div>
         <span class="leg">${e("cal.tiktokSemAuditoria")}</span></fieldset>
-      <label class="opcao-rede"><input type="checkbox" name="iaGerado" /> <span>${e("cal.iaGerado")}</span></label>
+      <div class="chave-linha">${chave({ ligado: false, rotulo: t("cal.iaGerado"), attrs: 'data-campo="iaGerado"' })}<span class="chave-texto">${e("cal.iaGerado")}</span></div>
       <div class="aviso info" id="cal-conflito" role="status" hidden></div>
       <div class="acoes"><button type="submit" class="btn primary">${e("cal.marcarNoCalendario")}</button>
         <span class="leg">${e("cal.espacamento", { n: ent.espacamentoMin })}</span></div>

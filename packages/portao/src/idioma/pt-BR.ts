@@ -577,6 +577,7 @@ export const PT_BR: Record<string, string> = {
   "sites.modoNome.navegador-da-pessoa": "Navegador da pessoa",
   "sites.modoNome.automatico": "Automático, com o seu navegador de plano B",
   "sites.ultimaLeituraNunca": "Ainda não foi lido",
+  "erro.miniatura": "não consegui gerar a miniatura",
   "js.erro.chave_ausente": "Falta configurar a chave de acesso da inteligência artificial. Veja em Configurações.",
   "js.erro.escritor_falhou": "O escritor de anúncios não conseguiu responder agora. Tente de novo em instantes.",
   "js.erro.nao_conectada": "Essa rede ainda não está conectada. Conecte a conta antes de agendar ou publicar.",

@@ -350,8 +350,11 @@ textarea.campo { resize: vertical; min-height: 96px; }
 .dia-n { font-size: 13px; font-weight: 600; line-height: 22px; }
 .dia-mais { width: 28px; padding: 0; }
 .dia-itens { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.chip-wrap { display: block; min-width: 0; }
+.chip-texto { display: flex; align-items: baseline; gap: 2px 6px; flex-wrap: wrap; min-width: 0; flex: 1; }
+.chip-mini { flex: none; width: 18px; height: 32px; object-fit: cover; border-radius: var(--dsw-radius-xs); background: var(--dsw-alias-bg-module-platform); }
 .chip {
-  display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; width: 100%; text-align: left;
+  display: flex; align-items: center; gap: 8px; width: 100%; text-align: left;
   padding: 3px 8px; border: 0.5px solid var(--dsw-alias-border-l3); border-radius: var(--dsw-radius-sm);
   background: var(--dsw-alias-bg-layer-1); color: var(--dsw-alias-label-primary);
   font-family: inherit; font-size: 12px; line-height: 18px; cursor: pointer;
@@ -364,7 +367,7 @@ textarea.campo { resize: vertical; min-height: 96px; }
 .chip.espera { background: color-mix(in srgb, var(--dsw-alias-state-warn-primary) 16%, transparent); }
 .chip.apagada { opacity: 0.55; text-decoration: line-through; }
 .chip-hora { font-weight: 600; }
-.chip-titulo { flex-basis: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--dsw-alias-label-secondary); }
+.chip-titulo { flex-basis: 100%; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--dsw-alias-label-secondary); }
 .chip-estado { display: none; }
 .cal-semana .chip-estado { display: inline; flex-basis: 100%; color: var(--dsw-alias-label-secondary); }
 .opcao-rede { display: flex; align-items: flex-start; gap: 8px; cursor: pointer; }
@@ -468,6 +471,29 @@ main[data-aba="agendamento"], main[data-aba="configuracoes"], main[data-aba="sit
 .chave:disabled { opacity: 0.4; cursor: not-allowed; }
 .chave-linha { display: flex; align-items: center; gap: 12px; }
 .chave-texto { font-size: 13px; line-height: 20px; color: var(--dsw-alias-label-secondary); }
+
+/* ---------- cartão da arte do vídeo (calendário, ao passar o mouse ou focar) ---------- */
+.cartao-flutuante {
+  position: fixed; z-index: 30; width: 220px; padding: 12px; display: flex; flex-direction: column; gap: 6px;
+  border-radius: var(--dsw-radius-lg); background-color: var(--dsw-alias-bg-layer-3); box-shadow: var(--dsw-elevation-prominent);
+  pointer-events: none; font-size: 13px; line-height: 20px;
+}
+.cartao-flutuante[hidden] { display: none; }
+.cartao-flutuante .cartao-arte { width: 100%; height: auto; aspect-ratio: 9 / 16; max-height: 300px; object-fit: cover; border-radius: var(--dsw-radius-md); background: var(--dsw-alias-bg-module-platform); }
+.cartao-flutuante .cartao-nome { font-size: 14px; font-weight: 600; overflow-wrap: anywhere; }
+.cartao-flutuante .cartao-preco { font-weight: 600; }
+.cartao-flutuante .cartao-quando { color: var(--dsw-alias-label-secondary); }
+
+/* ---------- Histórico: o que já saiu ---------- */
+.hist-linha { flex-direction: row; align-items: center; gap: 16px; }
+.hist-mini { flex: none; width: 40px; height: 71px; object-fit: cover; border-radius: var(--dsw-radius-sm); background: var(--dsw-alias-bg-module-platform); box-shadow: var(--dsw-elevation-stroke); }
+.hist-mini.vazio { display: inline-block; }
+.hist-corpo { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.hist-detalhe { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; }
+
+/* ---------- Sites ---------- */
+.site-linha { gap: 10px; }
+.tabela.amostra td, .tabela.amostra th { padding: 8px 12px; }
 
 /* ---------- IA do escritor (Configurações) ---------- */
 .ia-grade { display: flex; flex-direction: column; }

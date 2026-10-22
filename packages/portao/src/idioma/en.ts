@@ -577,6 +577,7 @@ export const EN = {
   "sites.modoNome.navegador-da-pessoa": "Your own browser",
   "sites.modoNome.automatico": "Automatic, with your browser as plan B",
   "sites.ultimaLeituraNunca": "Not read yet",
+  "erro.miniatura": "could not make the thumbnail",
   "js.erro.chave_ausente": "The AI access key is not configured. See Settings.",
   "js.erro.escritor_falhou": "The ad writer could not answer right now. Try again in a moment.",
   "js.erro.nao_conectada": "That network is not connected yet. Connect the account before scheduling or publishing.",

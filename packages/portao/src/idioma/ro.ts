@@ -563,6 +563,7 @@ export const RO: Record<string, string> = {
   "sites.modoNome.navegador-da-pessoa": "Browserul tău",
   "sites.modoNome.automatico": "Automat, cu browserul tău ca plan B",
   "sites.ultimaLeituraNunca": "Încă necitit",
+  "erro.miniatura": "nu am putut genera miniatura",
   "js.erro.chave_ausente": "Cheia de acces a inteligenței artificiale nu este configurată. Vezi în Setări.",
   "js.erro.escritor_falhou": "Redactorul de anunțuri nu a putut răspunde acum. Încearcă din nou în câteva momente.",
   "js.erro.nao_conectada": "Rețeaua nu este încă conectată. Conectează contul înainte de a programa sau publica.",

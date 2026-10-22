@@ -70,7 +70,7 @@ test("espaçamento mínimo entre vagas consecutivas", () => {
 test("limite diário da rede empurra para o dia seguinte da grade", () => {
   const plano: Plano = { ativo: true, grades: [{ dias: [1, 2, 3, 4, 5, 6, 0], horarios: ["10:00", "18:00"], redes: ["facebook"] }] };
   const r = calcularEncaixe(plano, [1, 2, 3, 4].map((id) => ({ videoId: id, redes: ["facebook" as Rede] })), ctx({ limites: { facebook: 2 } }));
-  // 2 por 24h móveis: qua 18:00, qui 10:00 (16h depois: janela de 24h já tem 2? só 1) ...
+  // no máximo 2 em qualquer janela de 24h
   const t = r.itens.map((i) => i.quandoMs);
   for (let i = 0; i + 2 < t.length; i++) assert.ok(t[i + 2]! - t[i]! >= 24 * 3_600_000, "3 publicações em menos de 24h");
   assert.equal(r.itens.length, 4);
@@ -84,7 +84,7 @@ test("limite do Facebook (30/24h) conta o que já foi publicado", () => {
   const v = proximaVagaDaGrade(plano, "facebook", ctx({ limites: { facebook: 30 }, ocupados: { instagram: [], tiktok: [], facebook: ocupados } }));
   // primeira publicação do lote saiu há ~1h: só volta a caber quando ela sair da janela de 24h
   assert.ok(v! - ocupados[0]! >= 24 * 3_600_000);
-  assert.equal(formatarBrasilia(v!).rotulo, "qui 22/10 10:00");
+  assert.equal(formatarBrasilia(v!).rotulo, "qui 22/10 18:00"); // 10:00 de quinta ainda cai a <24h do primeiro dos 30
 });
 
 test("vaga já ocupada é pulada", () => {

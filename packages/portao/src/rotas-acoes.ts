@@ -55,6 +55,8 @@ export interface Dependencias {
   fetchRede?: import("./publicacao/provedores.js").FetchLike;
   /** Ambiente de onde saem as chaves de IA (só para saber se existem). Padrão: process.env. */
   envIA?: Record<string, string | undefined>;
+  /** Gera a miniatura de um vídeo. Padrão: ffmpeg. */
+  gerarMiniatura?: import("./miniaturas.js").GeradorDeMiniatura;
   /** Teste de site (tela Sites). Padrão: testarSite do leitor. */
   testarSiteFn?: (url: string, opcoes: import("@gerador/leitor").OpcoesTeste) => Promise<import("@gerador/leitor").ResultadoTeste>;
   /** Verificação do navegador da pessoa. Padrão: bsk, sem subir o serviço. */

@@ -13,6 +13,8 @@ import {
   type Agendamento,
   type ItemEstoque,
   type ProgressoFila,
+  NOMES_REDE,
+  type Rede,
 } from "@gerador/core";
 import { secaoIA, type DadosIA } from "./ia.js";
 import type { Site } from "@gerador/leitor";
@@ -499,30 +501,56 @@ export function paginaEstoque(itens: ItemEstoque[], contadores: Contadores = SEM
 
 // -------------------------------------------------------------- Histórico
 
-export function paginaHistorico(videos: VideoParaCartao[], contadores: Contadores = SEM_CONTADORES): string {
-  const cartoes = videos.map((v) => {
-    const antes = (v.rejeicoesAnteriores ?? []).map((m) => rotuloDe("motivo", m));
-    const nota = antes.length
-      ? `<p class="leg">${escaparHtml(t("hist.rejeitadoAntes", { motivos: antes.join(", ") }))}</p>`
-      : `<p class="leg">${e("hist.deprimeira")}</p>`;
-    return `<article class="cartao video" data-card data-id="${v.id}" id="video-${v.id}">
-      <div class="video-player">${player(v)}</div>
-      <div class="video-info">
-        <div>${selo(v.estado)} <span class="leg">${escaparHtml(formatarBrasilia(v.atualizadoEm ?? v.criadoEm))}</span></div>
-        ${fichaChips(v.produto, v.quantidadeFotos)}
-        ${anuncio(v)}
-        ${v.redes ? blocoRedes(v.id, v.caminhoMp4, v.redes, { agendar: true }) : ""}
-        ${nota}
-      </div>
-    </article>`;
-  });
+/** Uma coisa que já SAIU: um vídeo publicado numa rede, ou um vídeo rejeitado com o motivo. */
+export interface EntradaHistorico {
+  tipo: "publicado" | "rejeitado";
+  /** ISO UTC de quando aconteceu. */
+  quando: string;
+  videoId: number;
+  nome: string;
+  preco?: number | undefined;
+  moeda?: string | undefined;
+  /** Versão do MP4 (para a miniatura); ausente = sem arquivo. */
+  versao?: string | undefined;
+  rede?: Rede | undefined;
+  simulado?: boolean | undefined;
+  idExterno?: string | null | undefined;
+  motivo?: string | undefined;
+}
+
+function linhaHistorico(h: EntradaHistorico): string {
+  const mini = h.versao ? `<img class="hist-mini" src="/api/videos/${h.videoId}/miniatura.jpg?v=${encodeURIComponent(h.versao)}" alt="" width="40" height="71" loading="lazy" decoding="async" onerror="this.hidden=true" />` : `<span class="hist-mini vazio" aria-hidden="true"></span>`;
+  const preco = h.preco !== undefined ? ` · ${escaparHtml(formatarPreco(h.preco, h.moeda))}` : "";
+  let detalhe: string;
+  if (h.tipo === "publicado") {
+    const id = h.idExterno
+      ? /^https?:\/\//.test(h.idExterno)
+        ? `<a href="${escaparHtml(h.idExterno)}" target="_blank" rel="noopener noreferrer">${e("hist.verPost")}</a>`
+        : `<span class="fraco">${e("hist.postId", { id: h.idExterno })}</span>`
+      : "";
+    detalhe = `<span class="linha-valor">${escaparHtml(t("cal.cartaoQuando", { rede: NOMES_REDE[h.rede!], quando: formatarBrasilia(h.quando) }))}</span> ${h.simulado ? `<span class="selo">${e("pub.modoSeco")}</span>` : ""} ${id}`;
+  } else {
+    detalhe = `<span class="linha-valor">${escaparHtml(t("hist.rejeitadoEm", { quando: formatarBrasilia(h.quando), motivo: rotuloDe("motivo", h.motivo ?? "") }))}</span>`;
+  }
+  return `<article class="linha hist-linha" data-card data-id="${h.videoId}">${mini}<div class="hist-corpo"><div class="linha-rotulo">${escaparHtml(h.nome)}${preco}</div><div class="hist-detalhe">${detalhe}</div></div></article>`;
+}
+
+export function paginaHistorico(entradas: EntradaHistorico[], contadores: Contadores = SEM_CONTADORES): string {
+  const ordenadas = [...entradas].sort((a, b) => b.quando.localeCompare(a.quando));
+  const publicados = ordenadas.filter((h) => h.tipo === "publicado");
+  const rejeitados = ordenadas.filter((h) => h.tipo === "rejeitado");
+  const vazio = (chaveTexto: Chave): string => `<div class="linha"><p class="linha-ajuda">${e(chaveTexto)}</p></div>`;
   const conteudo =
-    videos.length === 0
-      ? `<h2>${e("aba.historico")}</h2><div class="cartao vazio">
-          <span class="grande">${e("hist.vazio.titulo")}</span>
+    entradas.length === 0
+      ? `<div><h2>${e("aba.historico")}</h2><p class="leg">${e("hist.proposito")}</p></div>
+         <div class="cartao vazio"><span class="grande">${e("hist.vazio.titulo")}</span>
           <p class="leg">${e("hist.vazio.texto")}</p>
           <div class="acoes"><a class="btn primary" href="/fila">${e("hist.vazio.ir")}</a></div></div>`
-      : `<div><h2>${e("aba.historico")}</h2><p class="leg">${e("hist.subtitulo")}</p></div>${cartoes.join("")}`;
+      : `<div><h2>${e("aba.historico")}</h2><p class="leg">${e("hist.proposito")}</p></div>
+        <div class="config-pagina">
+        ${grupo(`${e("hist.publicados")} <span class="fraco">${publicados.length}</span>`, publicados.length ? publicados.map(linhaHistorico) : [vazio("hist.semPublicados")], { id: "historico-publicados" })}
+        ${grupo(`${e("hist.rejeitados")} <span class="fraco">${rejeitados.length}</span>`, rejeitados.length ? rejeitados.map(linhaHistorico) : [vazio("hist.semRejeitados")], { id: "historico-rejeitados" })}
+        </div>`;
   return casca({ aba: "historico", titulo: nomeDaAba("historico"), conteudo, contadores, atualizarACada: 0 });
 }
 

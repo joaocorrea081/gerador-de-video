@@ -36,6 +36,7 @@ import {
   paginaEstoque,
   paginaFila,
   paginaHistorico,
+  type EntradaHistorico,
 } from "./paginas.js";
 import {
   paginaCalendario, paginaContas, paginaProntidao, paginaPublicacoes, parametrosCalendario, periodoDoCalendario,
@@ -47,6 +48,7 @@ import { inicioDoDiaUtc, somarDias, ymdBrasilia } from "./tempo.js";
 import { passoDoPublicador, recuperarAoSubir, tratarRotaPublicacao } from "./rotas-publicacao.js";
 import { dadosIA, tratarRotaIA } from "./ia.js";
 import { paginaSites, tratarRotaSites } from "./sites.js";
+import { miniaturaDoVideo, versaoDoArquivo } from "./miniaturas.js";
 import { listarSites } from "@gerador/leitor";
 import { dependenciasPadrao, rodarSeVencido, tratarRotaAcao, type Dependencias } from "./rotas-acoes.js";
 
@@ -112,6 +114,20 @@ function nomeDoVideo(v: VideoComProduto): string {
   const p = v.produto as { marca?: string; modelo?: string; ano?: number } | null;
   const carro = [p?.marca, p?.modelo, p?.ano].filter(Boolean).join(" ");
   return `#${v.id} — ${v.titulo ?? (carro || t("pub.videoN", { id: v.id }))}`;
+}
+
+/** Para o cartão que abre ao passar o mouse numa marcação: nome do carro, preço e versão do arquivo da miniatura. */
+function fichasDoCalendario(db: Database.Database, itens: { videoId: number }[]): Record<number, import("./paginas-publicacao.js").FichaDoCalendario> {
+  const saida: Record<number, import("./paginas-publicacao.js").FichaDoCalendario> = {};
+  for (const id of new Set(itens.map((i) => i.videoId))) {
+    const video = obterVideo(db, id);
+    if (!video?.caminhoMp4) continue;
+    const v = anexarProduto(db, video);
+    const p = v.produto as { marca?: string; modelo?: string; ano?: number; preco?: number; moeda?: string } | null;
+    const nome = [p?.marca, p?.modelo, p?.ano].filter(Boolean).join(" ") || v.titulo || t("pub.videoN", { id });
+    saida[id] = { nome, preco: p?.preco, moeda: p?.moeda, versao: versaoDoArquivo(video.caminhoMp4) };
+  }
+  return saida;
 }
 
 function anexarProduto(db: Database.Database, video: Video): VideoComProduto {
@@ -216,12 +232,29 @@ async function tratarRequisicaoNoIdioma(req: IncomingMessage, res: ServerRespons
     if (caminho === "/historico" && metodo === "GET") {
       const db = deps.abrirBanco();
       try {
-        const ia = iaDisponivel(deps);
-        const videos = [];
-        for (const b of listarVideosPorEstado(db, ["aprovado", "publicado"])) {
-          videos.push({ ...anexarProduto(db, b), redes: await dadosRedes(db, b, deps, ia) });
+        const entradas: EntradaHistorico[] = [];
+        const dadosDe = (video: Video) => {
+          const v = anexarProduto(db, video);
+          const p = v.produto as { marca?: string; modelo?: string; ano?: number; preco?: number; moeda?: string } | null;
+          return {
+            videoId: video.id,
+            nome: [p?.marca, p?.modelo, p?.ano].filter(Boolean).join(" ") || v.titulo || t("pub.videoN", { id: video.id }),
+            preco: p?.preco,
+            moeda: p?.moeda,
+            versao: video.caminhoMp4 && existsSync(video.caminhoMp4) ? versaoDoArquivo(video.caminhoMp4) : undefined,
+          };
+        };
+        for (const video of listarVideosPorEstado(db, ["aprovado", "publicado"])) {
+          for (const pub of listarPublicacoesDoVideo(db, video.id)) {
+            if (pub.estado !== "publicada") continue;
+            entradas.push({ ...dadosDe(video), tipo: "publicado", quando: pub.publicadaEm ?? pub.agendadaPara, rede: pub.rede, simulado: pub.simulado, idExterno: pub.idExterno });
+          }
         }
-        responderHtml(res, 200, paginaHistorico(videos as never, contadoresDe(db)));
+        for (const video of listarVideosPorEstado(db, ["rejeitado"])) {
+          const r = db.prepare("SELECT motivo, criado_em FROM rejeicao WHERE video_id = ? ORDER BY id DESC LIMIT 1").get(video.id) as { motivo: string; criado_em: string } | undefined;
+          entradas.push({ ...dadosDe(video), tipo: "rejeitado", quando: r?.criado_em ?? video.atualizadoEm, motivo: r?.motivo });
+        }
+        responderHtml(res, 200, paginaHistorico(entradas, contadoresDe(db)));
       } finally {
         db.close();
       }
@@ -250,17 +283,19 @@ async function tratarRequisicaoNoIdioma(req: IncomingMessage, res: ServerRespons
           .filter((v) => v.caminhoMp4)
           .map((v) => anexarProduto(db, v));
         const sel = Number(url.searchParams.get("video"));
+        const itensDoPeriodo = listarCalendario(db, inicioDoDiaUtc(inicio), inicioDoDiaUtc(somarDias(fim, 1)));
         responderHtml(
           res,
           200,
           paginaCalendario({
             visao, ancora, hoje,
-            itens: listarCalendario(db, inicioDoDiaUtc(inicio), inicioDoDiaUtc(somarDias(fim, 1))),
+            itens: itensDoPeriodo,
             videos: videos.map((v) => ({ id: v.id, nome: nomeDoVideo(v) })),
             contas: listarContas(db),
             espacamentoMin: espacamentoMinutos(db),
             videoSelecionado: Number.isInteger(sel) && videos.some((v) => v.id === sel) ? sel : null,
             contadores: contadoresDe(db),
+            fichas: fichasDoCalendario(db, itensDoPeriodo),
           }),
         );
       } finally {
@@ -360,6 +395,31 @@ async function tratarRequisicaoNoIdioma(req: IncomingMessage, res: ServerRespons
       const tamanho = statSync(video.caminhoMp4).size;
       res.writeHead(200, { "Content-Type": "video/mp4", "Content-Length": tamanho });
       createReadStream(video.caminhoMp4).pipe(res);
+      return;
+    }
+
+    // --- Miniatura do vídeo (um quadro do MP4, em cache) ---
+    const idMiniatura = extrairIdDoCaminho(caminho, "/api/videos/", "/miniatura.jpg");
+    if (idMiniatura !== undefined && metodo === "GET") {
+      const db = deps.abrirBanco();
+      let mp4: string | null | undefined;
+      try {
+        mp4 = obterVideo(db, idMiniatura)?.caminhoMp4;
+      } finally {
+        db.close();
+      }
+      if (!mp4 || !existsSync(mp4)) {
+        responderJson(res, 404, { erro: t("erro.videoNoDisco") });
+        return;
+      }
+      try {
+        const jpg = await miniaturaDoVideo(mp4, idMiniatura, deps.gerarMiniatura);
+        const tamanho = statSync(jpg).size;
+        res.writeHead(200, { "Content-Type": "image/jpeg", "Content-Length": tamanho, "Cache-Control": "public, max-age=31536000, immutable" });
+        createReadStream(jpg).pipe(res);
+      } catch {
+        responderJson(res, 404, { erro: t("erro.miniatura") });
+      }
       return;
     }
 

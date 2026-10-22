@@ -577,6 +577,7 @@ export const RU: Record<string, string> = {
   "sites.modoNome.navegador-da-pessoa": "Ваш браузер",
   "sites.modoNome.automatico": "Автоматически, ваш браузер — запасной вариант",
   "sites.ultimaLeituraNunca": "Ещё не читался",
+  "erro.miniatura": "не удалось создать миниатюру",
   "js.erro.chave_ausente": "Не настроен ключ доступа к ИИ. Смотрите «Настройки».",
   "js.erro.escritor_falhou": "Составитель объявлений сейчас не смог ответить. Попробуйте ещё раз через несколько секунд.",
   "js.erro.nao_conectada": "Эта сеть ещё не подключена. Подключите аккаунт, прежде чем планировать или публиковать.",
